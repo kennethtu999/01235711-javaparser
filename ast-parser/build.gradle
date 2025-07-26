@@ -1,0 +1,54 @@
+// ast-parser/build.gradle
+plugins {
+    id 'application' // Only this project needs to be runnable
+}
+
+dependencies {
+    // Eclipse JDT Core for AST parsing
+    implementation 'org.eclipse.jdt:org.eclipse.jdt.core:3.42.0' // Use a recent version, check Maven Central
+
+    // Jackson for JSON serialization
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2' // Use a recent version
+
+    // Logging (optional but recommended)
+    implementation 'org.slf4j:slf4j-simple:2.0.17' // Simple logger for console output
+
+    implementation 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+    
+    testImplementation 'org.projectlombok:lombok:1.18.36'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.36'
+
+    // Gradle Tooling API for testing
+    // testImplementation 'org.gradle:gradle-tooling-api:8.13' // 確保版本與您的 Gradle Wrapper 匹配
+}
+
+application {
+    mainClass = 'com.yourcompany.parser.AstParserApp'
+}
+
+tasks.jar {
+    // === START OF MODIFICATION ===
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // <-- Add this line to handle duplicates
+
+    // Optional: You can also explicitly exclude specific files that commonly cause conflicts
+    // from {
+    //     configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    // } {
+    //     exclude 'META-INF/*.DSA' // Java signature files
+    //     exclude 'META-INF/*.SF'  // Java signature files
+    //     exclude 'META-INF/*.RSA' // Java signature files
+    //     exclude 'META-INF/LICENSE' // Already handled by duplicatesStrategy, but can be explicit
+    //     exclude 'META-INF/NOTICE'
+    //     // If you have other specific files causing issues, add them here
+    // }
+    // === END OF MODIFICATION ===
+
+
+    manifest {
+        attributes 'Main-Class': 'com.yourcompany.parser.AstParserApp'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}

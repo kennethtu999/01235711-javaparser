@@ -1,0 +1,132 @@
+package com.yourcompany.parser;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.yourcompany.parser.model.FileAstData;
+import org.eclipse.jdt.core.JavaCore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays; // Needed for Arrays.toString in logging
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+public class AstParserApp {
+
+    private static final Logger logger = LoggerFactory.getLogger(AstParserApp.class);
+    private static final ObjectMapper objectMapper = new ObjectMapper()
+            .enable(SerializationFeature.INDENT_OUTPUT); // Pretty print JSON
+
+    public static void main(String[] args) {
+        if (args.length < 3) { // Now expecting at least 3 arguments: sourceRoots, outputDir, classpath
+            System.out.println("Usage: java -jar java-ast-parser.jar <source_root_dir1,...> <output_dir> <classpath_item1,...> [java_compliance_level]");
+            System.out.println("Example: java -jar java-ast-parser.jar /path/to/src/main/java /path/to/output /path/to/classes,/path/to/lib.jar 17");
+            System.out.println("Note: <classpath_item1,...> should be comma-separated absolute paths to JARs or compiled class directories.");
+            return;
+        }
+
+        String sourceRootDirsArg = args[0];
+        Path outputBaseDir = Paths.get(args[1]);
+        String classpathArg = args[2]; // New argument for classpath
+        String javaComplianceLevel = args.length > 3 ? args[3] : JavaCore.VERSION_17; // Default to Java 17
+
+        Set<Path> sourceRoots = Stream.of(sourceRootDirsArg.split(","))
+                .map(Paths::get)
+                .collect(Collectors.toSet());
+
+        List<String> projectSourcesList = new ArrayList<>();
+        List<String> projectClasspathList = new ArrayList<>();
+
+        for (Path sourceRoot : sourceRoots) {
+            if (!Files.exists(sourceRoot) || !Files.isDirectory(sourceRoot)) {
+                logger.error("Source directory does not exist or is not a directory: {}", sourceRoot);
+                // Decide if you want to exit here or just skip this source root.
+                // For a robust app, you might collect errors and continue. For now, we return.
+                return;
+            }
+            projectSourcesList.add(sourceRoot.toAbsolutePath().toString());
+        }
+
+        // Parse the new classpath argument
+        Stream.of(classpathArg.split(","))
+              .filter(s -> !s.trim().isEmpty()) // Filter out empty strings if multiple commas
+              .map(s -> Paths.get(s).toAbsolutePath().toString()) // Resolve to absolute path
+              .forEach(projectClasspathList::add);
+
+        // Convert lists to arrays for JDT Extractor
+        String[] projectSources = projectSourcesList.toArray(new String[0]);
+        String[] projectClasspath = projectClasspathList.toArray(new String[0]);
+
+        logger.info("Starting AST parsing for source roots: {}", sourceRoots);
+        logger.info("Project source paths for JDT: {}", Arrays.toString(projectSources));
+        logger.info("Project classpath for JDT (JARs/classes): {}", Arrays.toString(projectClasspath));
+        logger.info("Java compliance level: {}", javaComplianceLevel);
+        logger.info("Output directory: {}", outputBaseDir.toAbsolutePath());
+
+        AstExtractor astExtractor = new AstExtractor();
+        int parsedFilesCount = 0;
+        int failedFilesCount = 0;
+
+        try {
+            Files.createDirectories(outputBaseDir); // Ensure output directory exists
+        } catch (IOException e) {
+            logger.error("Could not create output directory {}: {}", outputBaseDir, e.getMessage());
+            return;
+        }
+
+        for (Path sourceRoot : sourceRoots) {
+            try (Stream<Path> paths = Files.walk(sourceRoot)) {
+                List<Path> javaFiles = paths
+                        .filter(Files::isRegularFile)
+                        .filter(p -> p.toString().endsWith(".java"))
+                        .collect(Collectors.toList());
+
+                logger.info("Found {} Java files in {}", javaFiles.size(), sourceRoot);
+
+                // Determine a unique prefix for files from this source root
+                // Use a hash of the absolute path to avoid conflicts for same-named files from different roots
+                String uniquePrefix = String.valueOf(sourceRoot.toAbsolutePath().toString().hashCode());
+
+                for (Path javaFile : javaFiles) {
+                    Path relativePath = sourceRoot.relativize(javaFile);
+                    logger.debug("Parsing: {}", relativePath);
+
+                    FileAstData fileAstData = astExtractor.parseJavaFile(javaFile, projectSources, projectClasspath, javaComplianceLevel);
+
+                    if (fileAstData != null) {
+                        fileAstData.setRelativePath(relativePath.toString()); // Set relative path for output
+                        
+                        // Construct a unique output filename in a subdirectory specific to the sourceRoot
+                        Path outputFile = outputBaseDir.resolve(uniquePrefix) // Add uniquePrefix as a subdirectory
+                                                      .resolve(relativePath.toString().replace(".java", ".json"));
+                        try {
+                            Files.createDirectories(outputFile.getParent()); // Ensure parent directories exist
+                            objectMapper.writeValue(outputFile.toFile(), fileAstData);
+                            parsedFilesCount++;
+                        } catch (IOException e) {
+                            logger.error("Error writing AST to {}: {}", outputFile, e.getMessage());
+                            failedFilesCount++;
+                        }
+                    } else {
+                        logger.warn("Failed to parse file: {}", javaFile.toAbsolutePath());
+                        failedFilesCount++;
+                    }
+                }
+            } catch (IOException e) {
+                logger.error("Error walking source directory {}: {}", sourceRoot, e.getMessage());
+            }
+        }
+
+        logger.info("--- Parsing Summary ---");
+        logger.info("Total files parsed successfully: {}", parsedFilesCount);
+        logger.info("Total files failed to parse: {}", failedFilesCount);
+        logger.info("Output saved to: {}", outputBaseDir.toAbsolutePath());
+    }
+}

@@ -1,0 +1,5 @@
+rootProject.name = 'java-ast-parsing-solution' // 更名為您的整體解決方案名稱
+
+// 包含所有子專案
+include 'ast-parser'
+include 'test-project'

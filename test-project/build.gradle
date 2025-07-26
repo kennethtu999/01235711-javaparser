@@ -1,0 +1,13 @@
+// test-project/build.gradle
+// This project acts as a sample Java project to be parsed by ast-parser.
+// It might have its own dependencies (e.g., Spring Boot, JPA, etc.)
+// For a simple example, it might not need extra dependencies.
+
+dependencies {
+    // Example: If your test-project uses Spring Boot, add its dependencies here.
+    // implementation 'org.springframework.boot:spring-boot-starter:3.1.5'
+    // implementation 'org.springframework.data:spring-data-jpa:3.1.5'
+    // ... any other dependencies that your test Java code might have
+}
+
+// No specific application plugin or fat JAR needed for this project, as it's just source code.
