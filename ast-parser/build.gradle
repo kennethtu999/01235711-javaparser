@@ -20,7 +20,7 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.36'
 
     // Gradle Tooling API for testing
-    // testImplementation 'org.gradle:gradle-tooling-api:8.13' // 確保版本與您的 Gradle Wrapper 匹配
+    implementation gradleApi()  // Uses the current Gradle version
 }
 
 application {

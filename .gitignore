@@ -1,3 +1,15 @@
 .gradle
 bin
 build
+
+# Eclipse project files
+.metadata
+.settings
+.project
+.classpath
+.factorypath
+.settings
+.metadata
+.project
+.classpath
+.factorypath
