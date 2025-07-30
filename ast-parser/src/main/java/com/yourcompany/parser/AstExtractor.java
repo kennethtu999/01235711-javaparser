@@ -61,7 +61,7 @@ public class AstExtractor {
 
             CompilationUnit cu = (CompilationUnit) parser.createAST(null);
 
-            FileAstData fileAstData = new FileAstData();
+            FileAstData fileAstData = new FileAstData(fileContentChars);
             fileAstData.setAbsolutePath(sourceFilePath.toAbsolutePath().toString());
             
             AstNode compilationUnitRoot = new AstNode(AstNodeType.COMPILATION_UNIT);

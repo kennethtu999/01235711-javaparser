@@ -1,13 +1,7 @@
 package com.yourcompany.parser;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.yourcompany.parser.model.FileAstData;
-import org.eclipse.jdt.core.JavaCore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +11,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.eclipse.jdt.core.JavaCore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.yourcompany.parser.model.FileAstData;
 
 public class AstParserApp {
 
@@ -121,11 +123,16 @@ public class AstParserApp {
                         fileAstData.setRelativePath(relativePath.toString()); // Set relative path for output
                         
                         // Construct a unique output filename in a subdirectory specific to the sourceRoot
+                        Path outputFile0 = outputBaseDir0.resolve(uniquePrefix) // Add uniquePrefix as a subdirectory
+                                                      .resolve(relativePath.toString());
                         Path outputFile = outputBaseDir0.resolve(uniquePrefix) // Add uniquePrefix as a subdirectory
                                                       .resolve(relativePath.toString().replace(".java", ".json"));
                         try {
                             Files.createDirectories(outputFile.getParent()); // Ensure parent directories exist
                             objectMapper.writeValue(outputFile.toFile(), fileAstData);
+                            
+                            Files.writeString(outputFile0, new String(fileAstData.getFileContent()), Charset.forName("UTF-8"));
+                        
                             parsedFilesCount++;
                         } catch (IOException e) {
                             logger.error("Error writing AST to {}: {}", outputFile, e.getMessage());
