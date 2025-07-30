@@ -9,12 +9,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashSet; // Use LinkedHashSet to preserve order during deduplication
+import java.util.LinkedHashSet; // Use LinkedHashSet to preserve order and handle duplicates
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -68,30 +67,46 @@ public class AstParserLauncher {
         }
         logger.info("Detected project type: {}", type);
 
-        List<String> sourceRoots = new ArrayList<>();
-        List<String> projectClasspath = new ArrayList<>();
+        // Use LinkedHashSet to avoid duplicates while preserving order
+        Set<String> sourceRoots = new LinkedHashSet<>();
+        Set<String> projectClasspath = new LinkedHashSet<>();
 
         try {
             switch (type) {
                 case GRADLE:
-                    processGradleProject(projectRoot, sourceRoots, projectClasspath);
+                    List<String> gradleSourceRoots = new ArrayList<>();
+                    List<String> gradleProjectClasspath = new ArrayList<>();
+                    processGradleProject(projectRoot, gradleSourceRoots, gradleProjectClasspath);
+                    sourceRoots.addAll(gradleSourceRoots);
+                    projectClasspath.addAll(gradleProjectClasspath);
                     break;
                 case MAVEN:
-                    processMavenProject(projectRoot, sourceRoots, projectClasspath);
+                    List<String> mavenSourceRoots = new ArrayList<>();
+                    List<String> mavenProjectClasspath = new ArrayList<>();
+                    processMavenProject(projectRoot, mavenSourceRoots, mavenProjectClasspath);
+                    sourceRoots.addAll(mavenSourceRoots);
+                    projectClasspath.addAll(mavenProjectClasspath);
                     break;
                 case ECLIPSE:
-                    processEclipseProject(projectRoot, sourceRoots, projectClasspath);
+                    List<String> eclipseSourceRoots = new ArrayList<>();
+                    List<String> eclipseProjectClasspath = new ArrayList<>();
+                    processEclipseProject(projectRoot, eclipseSourceRoots, eclipseProjectClasspath);
+                    sourceRoots.addAll(eclipseSourceRoots);
+                    projectClasspath.addAll(eclipseProjectClasspath);
                     break;
                 default:
                     throw new IllegalStateException("Unexpected project type: " + type);
             }
 
             logger.info("Invoking AstParserApp for parsing...");
-            AstParserApp.main(new String[]{
-                String.join(",", sourceRoots.stream().map(root -> projectRoot + "/" + root).collect(Collectors.toList())),
+            AstParserApp instance = new AstParserApp();
+            instance.execute(
+                projectRoot.toString(),
+                String.join(",", sourceRoots), // CORRECTED: Pass the comma-separated list of absolute source paths
                 outputDir.toString(),
-                String.join(",", projectClasspath), javaComplianceLevel
-            });
+                String.join(",", projectClasspath), 
+                javaComplianceLevel
+            );
 
             logger.info("Parsing completed successfully for project type {}.", type);
 
@@ -124,16 +139,16 @@ public class AstParserLauncher {
                     .connect();
 
             logger.info("Executing Gradle 'build' task on {}. This may take some time...", gradleProjectRoot.getFileName());
-            connection.newBuild().forTasks("build").run();
+            connection.newBuild().forTasks("build").withArguments("-x", "test").run(); // Skip tests to speed up
             logger.info("Gradle build task completed for {}.", gradleProjectRoot.getFileName());
 
             EclipseProject rootEclipseProject = connection.getModel(EclipseProject.class);
 
             collectGradleProjectInfo(rootEclipseProject, sourceRoots, projectClasspath);
 
-            logger.info("Collected {} source roots.", sourceRoots.size());
+            logger.info("Collected {} unique source roots.", sourceRoots.size());
             sourceRoots.forEach(s -> logger.debug("Source Root: {}", s));
-            logger.info("Collected {} classpath entries.", projectClasspath.size());
+            logger.info("Collected {} unique classpath entries.", projectClasspath.size());
             projectClasspath.forEach(c -> logger.debug("Classpath Entry: {}", c));
 
         } finally {
@@ -144,8 +159,9 @@ public class AstParserLauncher {
     }
 
     private static void collectGradleProjectInfo(EclipseProject eclipseProject, List<String> sourceRoots, List<String> projectClasspath) {
+        // FIXED: Resolve source directory paths to be absolute, which is crucial for multi-project builds.
         eclipseProject.getSourceDirectories().forEach(sourceFolder -> {
-            sourceRoots.add(sourceFolder.getPath());
+            sourceRoots.add(eclipseProject.getProjectDirectory().toPath().resolve(sourceFolder.getPath()).toAbsolutePath().toString());
         });
 
         eclipseProject.getClasspath().forEach(entry -> {
@@ -153,25 +169,23 @@ public class AstParserLauncher {
                 projectClasspath.add(entry.getFile().toPath().toAbsolutePath().toString());
             }
         });
-
+        
+        // Recursively collect info from child projects
         eclipseProject.getChildren().forEach(childProject -> {
             collectGradleProjectInfo(childProject, sourceRoots, projectClasspath);
         });
 
-        // Ensure current module's compiled classes are also added explicitly (fallback for Gradle)
+        // Fallback to ensure the compiled classes of the current module are on the classpath.
+        // This is important for resolving dependencies between modules in the same project.
         Path currentModuleBuildClasses = eclipseProject.getProjectDirectory().toPath()
                 .resolve("build/classes/java/main");
         if (Files.exists(currentModuleBuildClasses) && Files.isDirectory(currentModuleBuildClasses)) {
-            if (!projectClasspath.contains(currentModuleBuildClasses.toAbsolutePath().toString())) {
-                projectClasspath.add(currentModuleBuildClasses.toAbsolutePath().toString());
-            }
+            projectClasspath.add(currentModuleBuildClasses.toAbsolutePath().toString());
         }
         Path currentModuleTestBuildClasses = eclipseProject.getProjectDirectory().toPath()
                 .resolve("build/classes/java/test");
         if (Files.exists(currentModuleTestBuildClasses) && Files.isDirectory(currentModuleTestBuildClasses)) {
-            if (!projectClasspath.contains(currentModuleTestBuildClasses.toAbsolutePath().toString())) {
-                projectClasspath.add(currentModuleTestBuildClasses.toAbsolutePath().toString());
-            }
+            projectClasspath.add(currentModuleTestBuildClasses.toAbsolutePath().toString());
         }
     }
 
@@ -209,9 +223,8 @@ public class AstParserLauncher {
         }
 
         // --- Execute 'mvn dependency:build-classpath' to get dependencies ---
-        // This requires Maven to be installed and in PATH.
         logger.info("Executing 'mvn dependency:build-classpath' to collect Maven dependencies.");
-        List<String> command = Arrays.asList("mvn", "dependency:build-classpath", "-Dmdep.outputFile=target/classpath.txt", "-B"); // -B for batch mode (no user interaction)
+        List<String> command = Arrays.asList("mvn", "dependency:build-classpath", "-Dmdep.outputFile=target/classpath.txt", "-B");
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(mavenProjectRoot.toFile());
         pb.redirectErrorStream(true);
@@ -229,10 +242,8 @@ public class AstParserLauncher {
             logger.error("Maven command 'mvn dependency:build-classpath' failed with exit code {}. Classpath may be incomplete.", exitCode);
         }
 
-        // Read from generated classpath.txt file (always generated if mvn command runs)
         Path classpathTxtFile = mavenProjectRoot.resolve("target/classpath.txt");
         if (Files.exists(classpathTxtFile)) {
-            // Read the content of classpath.txt, which is a single line
             String fullClasspath = Files.readAllLines(classpathTxtFile).stream().collect(Collectors.joining(""));
             for (String path : fullClasspath.split(File.pathSeparator)) {
                 if (!path.trim().isEmpty()) {
@@ -242,10 +253,9 @@ public class AstParserLauncher {
         } else {
             logger.warn("Maven command did not generate target/classpath.txt. Classpath may be incomplete.");
         }
-        // Remove duplicates and preserve order
+        
         projectClasspath.clear();
         projectClasspath.addAll(new LinkedHashSet<>(projectClasspath));
-
 
         logger.info("Collected {} source roots for Maven project.", sourceRoots.size());
         sourceRoots.forEach(s -> logger.debug("Source Root: {}", s));
@@ -270,12 +280,11 @@ public class AstParserLauncher {
 
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-
         Document classpathDoc = dBuilder.parse(dotClasspathFile.toFile());
         classpathDoc.getDocumentElement().normalize();
 
         NodeList classpathEntries = classpathDoc.getElementsByTagName("classpathentry");
-        Set<String> processedClasspathEntries = new LinkedHashSet<>(); // Use LinkedHashSet for order and deduplication
+        Set<String> processedClasspathEntries = new LinkedHashSet<>();
 
         for (int i = 0; i < classpathEntries.getLength(); i++) {
             Node node = classpathEntries.item(i);
@@ -283,25 +292,21 @@ public class AstParserLauncher {
                 Element element = (Element) node;
                 String kind = element.getAttribute("kind");
                 String path = element.getAttribute("path");
-                String output = element.getAttribute("output"); // Output attribute for 'src' entries
+                String output = element.getAttribute("output");
 
-                // Resolve path variables (like M2_REPO)
                 Path resolvedPath = resolvePathVariables(path, eclipseProjectRoot);
 
                 switch (kind) {
-                    case "src": // Source folder or project dependency
-                        if (path.startsWith("/")) { // Project dependency (e.g., /MyDependentProject)
-                            String dependentProjectName = path.substring(1);
-                            logger.warn("Dependent Eclipse project '{}' found in .classpath. This launcher currently only processes a single project at a time. Its classpath won't be included automatically.", dependentProjectName);
-                            // To handle this, you would need to implement workspace scanning and recursive parsing.
-                        } else { // Source folder (relative path)
+                    case "src":
+                        if (path.startsWith("/")) {
+                            logger.warn("Dependent Eclipse project '{}' found in .classpath. This launcher processes a single project. Its classpath won't be included automatically.", path.substring(1));
+                        } else {
                             if (Files.exists(resolvedPath) && Files.isDirectory(resolvedPath)) {
                                 sourceRoots.add(resolvedPath.toAbsolutePath().toString());
                             } else {
                                 logger.warn("Source path specified in .classpath does not exist: {}", resolvedPath);
                             }
                         }
-                        // Add output folder for this source entry if specified
                         if (!output.isEmpty()) {
                             Path outputPathForSrc = eclipseProjectRoot.resolve(output).toAbsolutePath();
                             if (Files.exists(outputPathForSrc) && Files.isDirectory(outputPathForSrc)) {
@@ -311,58 +316,39 @@ public class AstParserLauncher {
                             }
                         }
                         break;
-                    case "lib": // External library JAR or folder
-                        if (Files.exists(resolvedPath) && (Files.isRegularFile(resolvedPath) || Files.isDirectory(resolvedPath))) {
+                    case "lib":
+                        if (Files.exists(resolvedPath)) {
                             processedClasspathEntries.add(resolvedPath.toAbsolutePath().toString());
                         } else {
                             logger.warn("Library path specified in .classpath could not be resolved or does not exist: {}", resolvedPath);
                         }
                         break;
-                    case "output": // Default project output folder (e.g., bin/)
+                    case "output":
                         if (Files.exists(resolvedPath) && Files.isDirectory(resolvedPath)) {
                             processedClasspathEntries.add(resolvedPath.toAbsolutePath().toString());
                         } else {
                             logger.warn("Default output path specified in .classpath does not exist: {}", resolvedPath);
                         }
                         break;
-                    case "con": // Classpath container (e.g., JRE System Library, Maven Dependencies)
+                    case "con":
                         if (path.startsWith("org.eclipse.jdt.launching.JRE_CONTAINER")) {
                             logger.info("Handling JRE System Library container: {}", path);
-                            // JDT's setEnvironment implicitly picks up the running JRE's standard libraries.
-                            // Explicitly adding JRE_CONTAINER paths for JDT is generally not strictly required
-                            // unless you need specific JRE versions or modules not in the running JRE.
-                            // However, if we must list paths, we try best effort for common JRE structures.
                             String javaHome = System.getProperty("java.home");
-                            // Java 8: rt.jar (or similar, depends on vendor)
                             Path rtJar = Paths.get(javaHome, "lib", "rt.jar");
                             if (Files.exists(rtJar)) {
                                 processedClasspathEntries.add(rtJar.toAbsolutePath().toString());
                             }
-                            // Java 9+: modules in jmods, accessed via jrt-fs.jar
-                            Path jrtFsJar = Paths.get(javaHome, "lib", "jrt-fs.jar"); // This file enables JRT filesystem access
+                            Path jrtFsJar = Paths.get(javaHome, "lib", "jrt-fs.jar");
                             if (Files.exists(jrtFsJar)) {
                                 processedClasspathEntries.add(jrtFsJar.toAbsolutePath().toString());
-                                // Also add jmods directory for modules (JDT needs actual module paths)
-                                Path jmodsDir = Paths.get(javaHome, "jmods");
-                                if (Files.exists(jmodsDir) && Files.isDirectory(jmodsDir)) {
-                                    try (Stream<Path> jmodFiles = Files.walk(jmodsDir, 1)) { // Only direct children
-                                        jmodFiles.filter(p -> p.toString().endsWith(".jmod"))
-                                                 .map(Path::toAbsolutePath)
-                                                 .map(Path::toString)
-                                                 .forEach(processedClasspathEntries::add);
-                                    }
-                                }
                             }
                             if (!Files.exists(rtJar) && !Files.exists(jrtFsJar)) {
                                 logger.warn("Could not find standard JRE libraries (rt.jar/jrt-fs.jar). JRE System Library may be incomplete. Path: {}", javaHome);
                             }
-
                         } else if (path.startsWith("org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER")) {
-                            logger.info("Maven dependencies container found for Eclipse project. Attempting to get classpath via 'mvn dependency:build-classpath'.");
-                            // If it's a Maven-enabled Eclipse project, use Maven logic
+                            logger.info("Maven dependencies container found. Attempting to get classpath via 'mvn dependency:build-classpath'.");
                             if (Files.exists(eclipseProjectRoot.resolve("pom.xml"))) {
                                 try {
-                                    // Temporarily pass a new list/set for Maven projectClasspath to avoid mixing
                                     List<String> mavenClasspathTemp = new ArrayList<>();
                                     processMavenProject(eclipseProjectRoot, new ArrayList<>(), mavenClasspathTemp);
                                     processedClasspathEntries.addAll(mavenClasspathTemp);
@@ -370,23 +356,13 @@ public class AstParserLauncher {
                                     logger.error("Failed to collect Maven dependencies for Eclipse project: {}", e.getMessage());
                                 }
                             } else {
-                                logger.warn("Maven dependencies container found, but pom.xml not present in Eclipse project root. Cannot automatically resolve Maven dependencies.");
-                                if (ECLIPSE_PATH_VARIABLES.containsKey("M2_REPO")) {
-                                    logger.info("Adding M2_REPO to classpath as fallback: {}", ECLIPSE_PATH_VARIABLES.get("M2_REPO"));
-                                    processedClasspathEntries.add(ECLIPSE_PATH_VARIABLES.get("M2_REPO"));
-                                }
+                                logger.warn("Maven dependencies container found, but pom.xml not present. Cannot automatically resolve dependencies.");
                             }
                         } else {
                             logger.warn("Unrecognized classpath container: {}. Its dependencies won't be included automatically.", path);
-                            // If it points to a resolved variable and exists, add it.
-                            if (Files.exists(resolvedPath)) {
-                                processedClasspathEntries.add(resolvedPath.toAbsolutePath().toString());
-                            }
                         }
                         break;
-                    case "var": // Variable definition (e.g., path="MY_VAR_NAME")
-                        // These are typically resolved when used in other paths.
-                        // We don't need to add them to classpath themselves.
+                    case "var":
                         logger.debug("Ignoring classpath variable definition: {}", path);
                         break;
                     default:
@@ -394,7 +370,7 @@ public class AstParserLauncher {
                 }
             }
         }
-        projectClasspath.addAll(processedClasspathEntries); // Add all unique, ordered entries
+        projectClasspath.addAll(processedClasspathEntries);
 
         logger.info("Collected {} source roots for Eclipse project.", sourceRoots.size());
         sourceRoots.forEach(s -> logger.debug("Source Root: {}", s));
@@ -402,31 +378,20 @@ public class AstParserLauncher {
         projectClasspath.forEach(c -> logger.debug("Classpath Entry: {}", c));
     }
 
-    /**
-     * Resolves Eclipse path variables (like M2_REPO) and absolute/relative paths.
-     * @param path The path string from .classpath.
-     * @param projectRoot The root directory of the Eclipse project.
-     * @return The resolved absolute path.
-     */
     private static Path resolvePathVariables(String path, Path projectRoot) {
-        // Handle common Eclipse-style variables like FOO_VAR/path/to/file.jar
         for (Map.Entry<String, String> entry : ECLIPSE_PATH_VARIABLES.entrySet()) {
             String varName = entry.getKey();
             String varValue = entry.getValue();
             if (path.startsWith(varName + "/")) {
                 return Paths.get(varValue, path.substring(varName.length() + 1));
             }
-            if (path.equals(varName)) { // For simple variable references like path="M2_REPO"
+            if (path.equals(varName)) {
                 return Paths.get(varValue);
             }
         }
-        // Handle workspace-relative paths starting with '/' (e.g., /MyProject/lib/foo.jar)
-        // For now, we treat them as absolute if they start with /, as this launcher is single-project
         if (path.startsWith("/")) {
-            // This is a simplification. In a multi-project workspace, this would need the workspace root.
             return Paths.get(path);
         }
-        // Assume it's relative to the current project's root
         return projectRoot.resolve(path);
     }
 }

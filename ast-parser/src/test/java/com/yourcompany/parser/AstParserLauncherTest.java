@@ -8,8 +8,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
@@ -27,9 +25,6 @@ public class AstParserLauncherTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private List<String> testProjectSourcePaths;
-    private List<String> testProjectClasspathPaths;
-
     @BeforeEach
     void setUp() throws Exception {
         // Locate the test-project subproject relative to the current project
@@ -38,19 +33,6 @@ public class AstParserLauncherTest {
 
         assertTrue(Files.exists(testProjectRoot) && Files.isDirectory(testProjectRoot),
                 "test-project directory should exist at: " + testProjectRoot.toAbsolutePath());
-
-        testProjectSourcePaths = new ArrayList<>();
-        testProjectClasspathPaths = new ArrayList<>();
-
-        // 直接指定源码路径和 classpath
-        Path srcMainJava = testProjectRoot.resolve("src/main/java");
-        Path compiledClassesDir = testProjectRoot.resolve("build/classes/java/main");
-
-        assertTrue(Files.exists(srcMainJava), "test-project/src/main/java should exist");
-        assertTrue(Files.exists(compiledClassesDir), "test-project/build/classes/java/main should exist. Please build test-project first.");
-
-        testProjectSourcePaths.add(srcMainJava.toAbsolutePath().toString());
-        testProjectClasspathPaths.add(compiledClassesDir.toAbsolutePath().toString());
 
         // 如有需要，可添加 JDK 的类路径（通常不需要，除非你的 AstParserApp 需要完整 JDK 路径）
         // 例如：System.getProperty("java.home") + "/lib/rt.jar" （Java 8）
@@ -63,7 +45,7 @@ public class AstParserLauncherTest {
     }
 
     @Test
-    void testParseFolder() throws IOException {
+    void testParseFolder() throws Exception {
         String outputDirArg = currentProjectDir.resolve("build/parsed-ast").toAbsolutePath().toString();
         String javaComplianceLevel = "17";
 

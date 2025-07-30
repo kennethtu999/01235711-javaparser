@@ -25,17 +25,34 @@ public class AstParserApp {
             .enable(SerializationFeature.INDENT_OUTPUT); // Pretty print JSON
 
     public static void main(String[] args) {
-        if (args.length < 3) { // Now expecting at least 3 arguments: sourceRoots, outputDir, classpath
-            System.out.println("Usage: java -jar java-ast-parser.jar <source_root_dir1,...> <output_dir> <classpath_item1,...> [java_compliance_level]");
-            System.out.println("Example: java -jar java-ast-parser.jar /path/to/src/main/java /path/to/output /path/to/classes,/path/to/lib.jar 17");
+        if (args.length < 4) { // Now expecting at least 3 arguments: sourceRoots, outputDir, classpath
+            System.out.println("Usage: java -jar java-ast-parser.jar <base_folder> <source_root_dir1,...> <output_dir> <classpath_item1,...> [java_compliance_level]");
+            System.out.println("Example: java -jar java-ast-parser.jar /path/to/base/folder /path/to/src/main/java /path/to/output /path/to/classes,/path/to/lib.jar 17");
             System.out.println("Note: <classpath_item1,...> should be comma-separated absolute paths to JARs or compiled class directories.");
             return;
         }
 
-        String sourceRootDirsArg = args[0];
-        Path outputBaseDir = Paths.get(args[1]);
-        String classpathArg = args[2]; // New argument for classpath
+        String baseFolder = args[0];
+        String sourceRootDirsArg = args[1];
+        String outputBaseDir = args[2];
+        String classpathArg = args[3]; // New argument for classpath
         String javaComplianceLevel = args.length > 3 ? args[3] : JavaCore.VERSION_17; // Default to Java 17
+
+
+        AstParserApp instance = new AstParserApp();
+        instance.execute(baseFolder, sourceRootDirsArg, outputBaseDir, classpathArg, javaComplianceLevel);
+    }
+
+    /**
+     * Execute the AST parsing for the given arguments.
+     * @param baseFolder
+     * @param sourceRootDirsArg
+     * @param outputBaseDir
+     * @param classpathArg
+     * @param javaComplianceLevel
+     */
+    public void execute(String baseFolder, String sourceRootDirsArg, String outputBaseDir, String classpathArg, String javaComplianceLevel) {
+        Path outputBaseDir0 = Paths.get(outputBaseDir);
 
         Set<Path> sourceRoots = Stream.of(sourceRootDirsArg.split(","))
                 .map(Paths::get)
@@ -68,16 +85,16 @@ public class AstParserApp {
         logger.info("Project source paths for JDT: {}", Arrays.toString(projectSources));
         logger.info("Project classpath for JDT (JARs/classes): {}", Arrays.toString(projectClasspath));
         logger.info("Java compliance level: {}", javaComplianceLevel);
-        logger.info("Output directory: {}", outputBaseDir.toAbsolutePath());
+        logger.info("Output directory: {}", outputBaseDir0.toAbsolutePath());
 
         AstExtractor astExtractor = new AstExtractor();
         int parsedFilesCount = 0;
         int failedFilesCount = 0;
 
         try {
-            Files.createDirectories(outputBaseDir); // Ensure output directory exists
+            Files.createDirectories(outputBaseDir0); // Ensure output directory exists
         } catch (IOException e) {
-            logger.error("Could not create output directory {}: {}", outputBaseDir, e.getMessage());
+            logger.error("Could not create output directory {}: {}", outputBaseDir0, e.getMessage());
             return;
         }
 
@@ -92,7 +109,7 @@ public class AstParserApp {
 
                 // Determine a unique prefix for files from this source root
                 // Use a hash of the absolute path to avoid conflicts for same-named files from different roots
-                String uniquePrefix = String.valueOf(sourceRoot.toAbsolutePath().toString().hashCode());
+                String uniquePrefix = sourceRoot.toAbsolutePath().toString().replace(baseFolder, "").replace("/", "_");
 
                 for (Path javaFile : javaFiles) {
                     Path relativePath = sourceRoot.relativize(javaFile);
@@ -104,7 +121,7 @@ public class AstParserApp {
                         fileAstData.setRelativePath(relativePath.toString()); // Set relative path for output
                         
                         // Construct a unique output filename in a subdirectory specific to the sourceRoot
-                        Path outputFile = outputBaseDir.resolve(uniquePrefix) // Add uniquePrefix as a subdirectory
+                        Path outputFile = outputBaseDir0.resolve(uniquePrefix) // Add uniquePrefix as a subdirectory
                                                       .resolve(relativePath.toString().replace(".java", ".json"));
                         try {
                             Files.createDirectories(outputFile.getParent()); // Ensure parent directories exist
@@ -127,6 +144,6 @@ public class AstParserApp {
         logger.info("--- Parsing Summary ---");
         logger.info("Total files parsed successfully: {}", parsedFilesCount);
         logger.info("Total files failed to parse: {}", failedFilesCount);
-        logger.info("Output saved to: {}", outputBaseDir.toAbsolutePath());
+        logger.info("Output saved to: {}", outputBaseDir0.toAbsolutePath());
     }
 }
