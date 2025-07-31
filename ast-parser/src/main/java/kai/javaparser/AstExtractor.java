@@ -1,8 +1,8 @@
-package com.yourcompany.parser;
+package kai.javaparser;
 
-import com.yourcompany.parser.model.AstNode;
-import com.yourcompany.parser.model.AstNodeType;
-import com.yourcompany.parser.model.FileAstData;
+import kai.javaparser.model.AstNode;
+import kai.javaparser.model.AstNodeType;
+import kai.javaparser.model.FileAstData;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.*;

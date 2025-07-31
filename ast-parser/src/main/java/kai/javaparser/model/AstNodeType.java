@@ -1,4 +1,4 @@
-package com.yourcompany.parser.model;
+package kai.javaparser.model;
 
 public enum AstNodeType {
     COMPILATION_UNIT,

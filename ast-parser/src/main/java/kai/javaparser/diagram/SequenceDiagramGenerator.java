@@ -1,4 +1,4 @@
-package com.yourcompany.parser;
+package kai.javaparser.diagram;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,9 +16,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yourcompany.parser.model.AstNode;
-import com.yourcompany.parser.model.AstNodeType;
-import com.yourcompany.parser.model.FileAstData;
+import kai.javaparser.model.AstNode;
+import kai.javaparser.model.AstNodeType;
+import kai.javaparser.model.FileAstData;
 
 public class SequenceDiagramGenerator {
 
@@ -29,7 +29,7 @@ public class SequenceDiagramGenerator {
 
     public static void main(String[] args) throws IOException {
         // --- MODIFICATION START: Update argument parsing ---
-        if (args.length < 3 || args.length > 4) {
+        if (args.length < 3 || args.length > 5) {
             System.out.println("使用方式: java SequenceDiagramGenerator <ast_json_dir> <entry_point_method_fqn> <package_scope> [excluded_classes_fqn]");
             System.out.println("範例: java SequenceDiagramGenerator build/parsed_asts com.example.test.MyClass.doSomething() com.example.test com.example.test.MyService,com.another.UtilityClass");
             System.out.println("[excluded_classes_fqn] 是可選參數，用逗號分隔。");
@@ -41,10 +41,16 @@ public class SequenceDiagramGenerator {
         String packageScope = args[2];
 
         // 解析排除列表 (新功能)
-        Set<String> exclusionSet = new HashSet<>();
-        if (args.length == 4 && args[3] != null && !args[3].trim().isEmpty()) {
-            exclusionSet.addAll(Arrays.asList(args[3].split(",")));
-            System.out.println("將排除以下類別的追蹤：" + exclusionSet);
+        Set<String> exclusionClassSet = new HashSet<>();
+        if (args.length >= 4 && args[3] != null && !args[3].trim().isEmpty()) {
+            exclusionClassSet.addAll(Arrays.asList(args[3].split(",")));
+            System.out.println("將排除以下類別的追蹤：" + exclusionClassSet);
+        }
+
+        Set<String> exclusionMethodSet = new HashSet<>();
+        if (args.length == 5 && args[4] != null && !args[4].trim().isEmpty()) {
+            exclusionMethodSet.addAll(Arrays.asList(args[4].split(",")));
+            System.out.println("將排除以下方法的追蹤：" + exclusionMethodSet);
         }
         // --- MODIFICATION END ---
 
@@ -53,12 +59,12 @@ public class SequenceDiagramGenerator {
         System.out.println("索引建立完成，共找到 " + classAstIndex.size() + " 個類別。");
 
         mermaidBuilder.append("sequenceDiagram\n");
-        String entryPointClassSimpleName = getSimpleClassName(entryPointMethodFqn);
+        String entryPointClassSimpleName = AstClassUtil.getSimpleClassName(entryPointMethodFqn);
         mermaidBuilder.append("    actor User\n");
-        mermaidBuilder.append(String.format("    User->>%s: %s\n", entryPointClassSimpleName, getMethodSignature(entryPointMethodFqn)));
+        mermaidBuilder.append(String.format("    User->>%s: %s\n", entryPointClassSimpleName, AstClassUtil.getMethodSignature(entryPointMethodFqn)));
         
         // --- MODIFICATION START: Pass exclusionSet to traceMethod ---
-        traceMethod(entryPointMethodFqn, packageScope, exclusionSet, new HashSet<>());
+        traceMethod(entryPointMethodFqn, packageScope, exclusionClassSet, exclusionMethodSet, new HashSet<>());
         // --- MODIFICATION END ---
 
         System.out.println("\n--- Mermaid 序列圖語法 ---");
@@ -79,6 +85,7 @@ public class SequenceDiagramGenerator {
                             .ifPresent(classNode -> {
                                 String classFqn = astData.getPackageName() + "." + classNode.getName();
                                 classAstIndex.put(classFqn, jsonFile);
+                                astCache.put(jsonFile, astData);
                             });
                      } catch (IOException e) {
                          System.err.println("讀取或解析 JSON 檔案失敗: " + jsonFile);
@@ -87,21 +94,72 @@ public class SequenceDiagramGenerator {
         }
     }
 
-    private static boolean isExcluded(String classFqn, Set<String> exclusionSet) {
-        return exclusionSet.stream().anyMatch(exclusion -> classFqn.startsWith(exclusion));
+    /**
+     * 判斷是否被排除
+     * @param classFqn
+     * @param exclusionClassSet
+     * @param exclusionMethodSet
+     * @return
+     */
+    private static boolean isExcluded(String classFqn, Set<String> exclusionClassSet, Set<String> exclusionMethodSet) {
+        if (exclusionClassSet.stream().anyMatch(exclusion -> classFqn.startsWith(exclusion))) {
+            System.err.println("INFO: 已跳過追蹤被排除的類別: " + classFqn);
+            return true;
+        }
+
+        if (exclusionMethodSet.stream().anyMatch(exclusion -> classFqn.indexOf(exclusion) != -1)) {
+            System.err.println("INFO: 已跳過追蹤被排除的方法: " + classFqn);
+            return true;
+        }
+
+        
+        // 檢查是否是 getter/setter 方法，如果是且對應到 attribute 則排除
+        if (classFqn.matches(".*\\.get.*") || classFqn.matches(".*\\.set.*")) {
+            String targetClassFqn = AstClassUtil.getClassFqnFromMethodFqn(classFqn);
+            String methodName = AstClassUtil.getMethodSignature(classFqn);
+            
+            // 提取 attribute 名稱
+            final String attrName = methodName.replaceAll("^(get|set)", "").replaceAll("\\(.*\\)", "");
+            final String finalAttrName;
+            if (attrName.length() > 0) {
+                // 將第一個字母轉為小寫（Java 命名慣例）
+                finalAttrName = attrName.substring(0, 1).toLowerCase() + attrName.substring(1);
+            } else {
+                finalAttrName = attrName;
+            }
+            
+            // 檢查目標類別是否有對應的 attribute
+            Path path = classAstIndex.get(targetClassFqn);
+            if (path != null) {
+                FileAstData astData = astCache.get(path);
+                if (astData != null) {
+                    if (astData.isGetterSetter(finalAttrName)) {
+                        System.err.println("INFO: 已跳過追蹤對應到 attribute 的 Getter/Setter: " + classFqn + " (attribute: " + finalAttrName + ")");
+                        return true;
+                    }
+                }
+            }
+            
+            // 檢查是否在排除列表中
+            if (exclusionClassSet.stream().anyMatch(exclusion -> targetClassFqn.startsWith(exclusion))) {
+                System.err.println("INFO: 已跳過追蹤被排除的類別: " + targetClassFqn);
+                return true;
+            }
+        }
+        return false;
     }
 
     // --- MODIFICATION START: Update traceMethod signature and add exclusion logic ---
-    private static void traceMethod(String methodFqn, String packageScope, Set<String> exclusionSet, Set<String> callStack) throws IOException {
+    private static void traceMethod(String methodFqn, String packageScope, Set<String> exclusionClassSet, Set<String> exclusionMethodSet, Set<String> callStack) throws IOException {
         // --- 防禦性檢查 ---
         if (callStack.contains(methodFqn)) {
             return; // 避免無限遞迴
         }
         
-        String classFqn = getClassFqnFromMethodFqn(methodFqn);
+        String classFqn = AstClassUtil.getClassFqnFromMethodFqn(methodFqn);
 
         // 新增的排除邏輯
-        if (isExcluded(classFqn, exclusionSet)) {
+        if (isExcluded(classFqn, exclusionClassSet, exclusionMethodSet)) {
             System.err.println("INFO: 已跳過追蹤被排除的類別: " + classFqn);
             return;
         }
@@ -118,7 +176,7 @@ public class SequenceDiagramGenerator {
 
         callStack.add(methodFqn);
         
-        String callerClassSimpleName = getSimpleClassName(classFqn);
+        String callerClassSimpleName = AstClassUtil.getSimpleClassName(classFqn);
         mermaidBuilder.append(String.format("    activate %s\n", callerClassSimpleName));
 
         FileAstData astData = astCache.computeIfAbsent(astFile, path -> {
@@ -127,24 +185,24 @@ public class SequenceDiagramGenerator {
 
         if (astData == null) return;
         
-        findMethodNode(astData, getMethodSignature(methodFqn)).ifPresent(methodNode -> {
+        findMethodNode(astData, AstClassUtil.getMethodSignature(methodFqn)).ifPresent(methodNode -> {
             findMethodInvocations(methodNode).forEach(invocation -> {
                 String invokedMethodFqn = invocation.getFullyQualifiedName();
 
-                if (isExcluded(invokedMethodFqn, exclusionSet)) {
+                if (isExcluded(invokedMethodFqn, exclusionClassSet, exclusionMethodSet)) {
                     System.err.println("INFO: 已跳過追蹤被排除的類別: " + invokedMethodFqn);
                     return;
                 }
 
                 if (invokedMethodFqn != null) {
-                    String calleeClassSimpleName = getSimpleClassName(invokedMethodFqn);
-                    String methodSignature = getMethodSignature(invokedMethodFqn);
+                    String calleeClassSimpleName = AstClassUtil.getSimpleClassName(invokedMethodFqn);
+                    String methodSignature = AstClassUtil.getMethodSignature(invokedMethodFqn);
 
                     mermaidBuilder.append(String.format("    %s->>%s: %s\n", callerClassSimpleName, calleeClassSimpleName, methodSignature));
                     
                     try {
                         // --- MODIFICATION START: Pass exclusionSet in recursive call ---
-                        traceMethod(invokedMethodFqn, packageScope, exclusionSet, callStack);
+                        traceMethod(invokedMethodFqn, packageScope, exclusionClassSet, exclusionMethodSet, callStack);
                         // --- MODIFICATION END ---
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -183,29 +241,4 @@ public class SequenceDiagramGenerator {
         return invocations;
     }
 
-    private static String getClassFqnFromMethodFqn(String methodFqn) {
-        int lastDot = methodFqn.lastIndexOf('.', methodFqn.indexOf('('));
-        return lastDot == -1 ? "" : methodFqn.substring(0, lastDot);
-    }
-    
-    /**
-     * 進來可能是 Class FQN 或 Method FQN
-     * @param fqn
-     * @return
-     */
-    private static String getSimpleClassName(String fqn) {
-        String classFqn = getClassFqnFromMethodFqn(fqn);
-        classFqn = "".equals(classFqn) ? fqn : classFqn;
-
-        int lastDot = classFqn.lastIndexOf('.');
-        return lastDot == -1 ? classFqn : classFqn.substring(lastDot + 1);
-    }
-
-    private static String getMethodSignature(String fqn) {
-        String classFqn = getClassFqnFromMethodFqn(fqn);
-        if (fqn.length() <= classFqn.length()) { // Handle cases where FQN might be malformed
-            return fqn;
-        }
-        return fqn.substring(classFqn.length() + 1);
-    }
 }

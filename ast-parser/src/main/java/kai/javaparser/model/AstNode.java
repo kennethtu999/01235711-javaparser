@@ -1,4 +1,4 @@
-package com.yourcompany.parser.model;
+package kai.javaparser.model;
 
 import java.util.ArrayList;
 import java.util.List;

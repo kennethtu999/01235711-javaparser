@@ -17,7 +17,7 @@ subprojects {
     apply plugin: 'java' // Apply Java plugin to all subprojects by default
     apply plugin: 'java-library' // Often preferred over 'java' for library modules
 
-    group = 'com.yourcompany.parser' // Common group for all subprojects
+    group = 'kai.javaparser' // Common group for all subprojects
     version = '1.0-SNAPSHOT' // Common version for all subprojects
 
     dependencies {

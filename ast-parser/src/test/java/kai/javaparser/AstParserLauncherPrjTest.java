@@ -1,4 +1,4 @@
-package com.yourcompany.parser;
+package kai.javaparser;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -21,7 +21,7 @@ public class AstParserLauncherPrjTest {
     void setUp() throws Exception {
         // Locate the test-project subproject relative to the current project
         currentProjectDir = Paths.get(".").toAbsolutePath();
-        testProjectRoot = Paths.get("/Users/xxx/git/uuuu");
+        testProjectRoot = Paths.get("/Users/kenneth/git/SCSB_eWB");
 
         assertTrue(Files.exists(testProjectRoot) && Files.isDirectory(testProjectRoot),
                 "test-project directory should exist at: " + testProjectRoot.toAbsolutePath());

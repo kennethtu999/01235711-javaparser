@@ -24,7 +24,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.yourcompany.parser.AstParserApp'
+    mainClass = 'kai.javaparser.AstParserApp'
 }
 
 tasks.jar {
@@ -46,7 +46,7 @@ tasks.jar {
 
 
     manifest {
-        attributes 'Main-Class': 'com.yourcompany.parser.AstParserApp'
+        attributes 'Main-Class': 'kai.javaparser.AstParserApp'
     }
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }

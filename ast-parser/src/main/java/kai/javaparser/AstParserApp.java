@@ -1,4 +1,4 @@
-package com.yourcompany.parser;
+package kai.javaparser;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.yourcompany.parser.model.FileAstData;
+import kai.javaparser.model.FileAstData;
 
 public class AstParserApp {
 

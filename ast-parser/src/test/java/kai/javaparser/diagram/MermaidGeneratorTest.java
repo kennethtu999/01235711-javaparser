@@ -1,4 +1,4 @@
-package com.yourcompany.parser;
+package kai.javaparser.diagram;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -34,17 +34,31 @@ public class MermaidGeneratorTest {
     @Test
     void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
         Path resourcePath = Paths.get("build/parsed-ast");
-        String methodSignature = "pagecode.xxxx.initViewForm()";
+        String methodSignature = "pagecode.cac.cacq001.CACQ001_1.initViewForm()";
         String basePackage = "pagecode";
-        String[] exclusionSet = {
+        String[] exclusionClassSet = {
             "org",
-            "java"};
-        
+            "java",
+            "com.ibm.tw.commons",
+            "com.scsb.ewb.j2ee"};
+
+        String[] exclusionMethodSet = {
+            "getBundleString",
+            "setWidth",
+            "setStyleClass",
+            "addHeader",
+            "setColspan",
+            "setAlign",
+            "getDisplayMoney",
+            "add"
+        };
+
         String[] args = { 
             resourcePath.toAbsolutePath().toString(), 
             methodSignature, 
             basePackage, 
-            String.join(",", exclusionSet) 
+            String.join(",", exclusionClassSet),
+            String.join(",", exclusionMethodSet)
         };
 
         

@@ -1,4 +1,4 @@
-package com.yourcompany.parser;
+package kai.javaparser;
 
 import java.io.BufferedReader;
 import java.io.File;

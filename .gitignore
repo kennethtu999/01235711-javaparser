@@ -13,3 +13,4 @@ build
 .project
 .classpath
 .factorypath
+.DS_Store
