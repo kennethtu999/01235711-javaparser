@@ -1,5 +1,8 @@
 package kai.javaparser.util;
 
+import java.io.IOException;
+import java.nio.file.Path;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -17,6 +20,14 @@ public class Util {
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return null;
+        }
+    }
+
+    public static void writeJson(Path outputFile, Object object) throws IOException {
+        try {
+            objectMapper.writeValue(outputFile.toFile(), object);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
         }
     }
 

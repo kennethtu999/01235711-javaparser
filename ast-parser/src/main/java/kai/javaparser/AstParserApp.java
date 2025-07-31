@@ -16,16 +16,12 @@ import org.eclipse.jdt.core.JavaCore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import kai.javaparser.model.FileAstData;
+import kai.javaparser.util.Util;
 
 public class AstParserApp {
 
     private static final Logger logger = LoggerFactory.getLogger(AstParserApp.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT); // Pretty print JSON
-
+    
     public static void main(String[] args) {
         if (args.length < 4) { // Now expecting at least 3 arguments: sourceRoots, outputDir, classpath
             System.out.println("Usage: java -jar java-ast-parser.jar <base_folder> <source_root_dir1,...> <output_dir> <classpath_item1,...> [java_compliance_level]");
@@ -90,8 +86,6 @@ public class AstParserApp {
         logger.info("Output directory: {}", outputBaseDir0.toAbsolutePath());
 
         AstExtractor astExtractor = new AstExtractor();
-        int parsedFilesCount = 0;
-        int failedFilesCount = 0;
 
         try {
             Files.createDirectories(outputBaseDir0); // Ensure output directory exists
@@ -113,13 +107,11 @@ public class AstParserApp {
                 // Use a hash of the absolute path to avoid conflicts for same-named files from different roots
                 String uniquePrefix = sourceRoot.toAbsolutePath().toString().replace(baseFolder, "").replace("/", "_");
 
-                for (Path javaFile : javaFiles) {
-                    Path relativePath = sourceRoot.relativize(javaFile);
-                    logger.debug("Parsing: {}", relativePath);
-
-                    FileAstData fileAstData = astExtractor.parseJavaFile(javaFile, projectSources, projectClasspath, javaComplianceLevel);
-
+                javaFiles.parallelStream()
+                .map(path -> astExtractor.parseJavaFile(path, projectSources, projectClasspath, javaComplianceLevel))
+                .forEach(fileAstData -> {
                     if (fileAstData != null) {
+                        Path relativePath = sourceRoot.relativize(Paths.get(fileAstData.getAbsolutePath()));
                         fileAstData.setRelativePath(relativePath.toString()); // Set relative path for output
                         
                         // Construct a unique output filename in a subdirectory specific to the sourceRoot
@@ -129,28 +121,22 @@ public class AstParserApp {
                                                       .resolve(relativePath.toString().replace(".java", ".json"));
                         try {
                             Files.createDirectories(outputFile.getParent()); // Ensure parent directories exist
-                            objectMapper.writeValue(outputFile.toFile(), fileAstData);
+                            Util.writeJson(outputFile, fileAstData);
                             
                             Files.writeString(outputFile0, new String(fileAstData.getFileContent()), Charset.forName("UTF-8"));
                         
-                            parsedFilesCount++;
                         } catch (IOException e) {
                             logger.error("Error writing AST to {}: {}", outputFile, e.getMessage());
-                            failedFilesCount++;
                         }
-                    } else {
-                        logger.warn("Failed to parse file: {}", javaFile.toAbsolutePath());
-                        failedFilesCount++;
                     }
-                }
+                });
+
             } catch (IOException e) {
                 logger.error("Error walking source directory {}: {}", sourceRoot, e.getMessage());
             }
         }
 
         logger.info("--- Parsing Summary ---");
-        logger.info("Total files parsed successfully: {}", parsedFilesCount);
-        logger.info("Total files failed to parse: {}", failedFilesCount);
         logger.info("Output saved to: {}", outputBaseDir0.toAbsolutePath());
     }
 }
