@@ -2,6 +2,7 @@ package kai.javaparser.util;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +36,15 @@ public class Util {
         try {
             return objectMapper.readValue(json, clazz);
         } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static <T> T readJson(Path cacheFilePath, Class<T> clazz) {
+        try {
+            return objectMapper.readValue(cacheFilePath.toFile(), clazz);
+        } catch (IOException e) {
             e.printStackTrace();
             return null;
         }
