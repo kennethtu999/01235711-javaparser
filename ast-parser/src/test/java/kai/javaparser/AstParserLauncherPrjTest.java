@@ -21,7 +21,7 @@ public class AstParserLauncherPrjTest {
     void setUp() throws Exception {
         // Locate the test-project subproject relative to the current project
         currentProjectDir = Paths.get(".").toAbsolutePath();
-        testProjectRoot = Paths.get("/Users/kenneth/git/SCSB_eWB");
+        testProjectRoot = Paths.get(System.getProperty("user.home"), "git", "scsb");
 
         assertTrue(Files.exists(testProjectRoot) && Files.isDirectory(testProjectRoot),
                 "test-project directory should exist at: " + testProjectRoot.toAbsolutePath());
