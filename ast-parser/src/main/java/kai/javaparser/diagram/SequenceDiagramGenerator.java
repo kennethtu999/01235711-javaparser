@@ -31,8 +31,10 @@ public class SequenceDiagramGenerator {
 
     public static void main(String[] args) {
         if (args.length < 3 || args.length > 5) {
-            System.out.println("使用方式: java SequenceDiagramGenerator <ast_json_dir> <entry_point_method_fqn> <package_scope> [excluded_classes_fqn]");
-            System.out.println("範例: java SequenceDiagramGenerator build/parsed_asts com.example.MyClass.doSomething() com.example com.example.util,java.lang");
+            System.out.println(
+                    "使用方式: java SequenceDiagramGenerator <ast_json_dir> <entry_point_method_fqn> <package_scope> [excluded_classes_fqn]");
+            System.out.println(
+                    "範例: java SequenceDiagramGenerator build/parsed_asts com.example.MyClass.doSomething() com.example com.example.util,java.lang");
             return;
         }
 
@@ -41,7 +43,7 @@ public class SequenceDiagramGenerator {
             Path astJsonDir = Path.of(args[0]);
             String entryPointMethodFqn = args[1];
             String packageScope = args[2];
-            
+
             Set<String> exclusionClassSet = new HashSet<>();
             Set<String> exclusionMethodSet = new HashSet<>();
             if (args.length >= 4 && args[3] != null && !args[3].trim().isEmpty()) {
@@ -78,7 +80,7 @@ public class SequenceDiagramGenerator {
      * @return 如果此方法或其任何下游呼叫產生了追蹤輸出，則返回 true。
      */
     private static boolean traceMethod(String methodFqn, String packageScope, TraceFilter filter,
-                                     AstIndex astIndex, MermaidOutput output, Set<String> callStack) {
+            AstIndex astIndex, MermaidOutput output, Set<String> callStack) {
         // --- 防禦性檢查 ---
         if (callStack.contains(methodFqn)) {
             return false; // 避免無限遞迴
@@ -95,7 +97,7 @@ public class SequenceDiagramGenerator {
         if (astData == null) {
             return false; // 找不到 AST 資訊
         }
-        
+
         // --- 尋找此方法節點內的所有下游呼叫 ---
         List<AstNode> invocations = astData.findMethodNode(methodFqn)
                 .map(astData::findMethodInvocations)
@@ -103,7 +105,8 @@ public class SequenceDiagramGenerator {
 
         // 過濾掉不需追蹤的下游呼叫
         List<AstNode> validInvocations = invocations.stream()
-                .filter(inv -> inv.getFullyQualifiedName() != null && !filter.shouldExclude(inv.getFullyQualifiedName(), astIndex))
+                .filter(inv -> inv.getFullyQualifiedName() != null
+                        && !filter.shouldExclude(inv.getFullyQualifiedName(), astIndex))
                 .collect(Collectors.toList());
 
         // *** 核心邏輯: 如果沒有任何有效的下游呼叫，則不為此方法產生任何輸出 ***
@@ -123,7 +126,7 @@ public class SequenceDiagramGenerator {
             String methodSignature = AstClassUtil.getMethodSignature(invokedMethodFqn);
 
             output.addCall(callerSimpleName, calleeSimpleName, methodSignature);
-            
+
             // 遞迴呼叫
             if (traceMethod(invokedMethodFqn, packageScope, filter, astIndex, output, callStack)) {
                 tracedSomethingDownstream = true;
@@ -132,7 +135,7 @@ public class SequenceDiagramGenerator {
 
         output.deactivate(callerSimpleName);
         callStack.remove(methodFqn);
-        
+
         return true; // 因為我們至少產生了 activate/deactivate 和 call，所以返回 true
     }
 }
