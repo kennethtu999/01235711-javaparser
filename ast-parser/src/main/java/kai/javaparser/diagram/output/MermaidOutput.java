@@ -1,13 +1,13 @@
 package kai.javaparser.diagram.output;
 
-import kai.javaparser.diagram.AstClassUtil;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * 負責生成 Mermaid 序列圖語法。
- * <p>
- * 此類別封裝了 StringBuilder 的操作細節，提供語意化的高階方法
- * (如 addCall, activate, deactivate)，讓主追蹤邏輯更清晰。
- * </p>
+ * 支援：
+ * - participant <safeId> as <displayName>
+ * - 保留原始 FQN 方便將來反向解析
  */
 public class MermaidOutput {
     private final StringBuilder mermaidBuilder;
@@ -18,52 +18,87 @@ public class MermaidOutput {
     }
 
     /**
-     * 添加一個參與者 (Actor)。
-     * @param name 參與者的名稱
+     * 添加 Actor（特殊的 participant）。
+     *
+     * @param name 顯示名稱
      */
     public void addActor(String name) {
         mermaidBuilder.append(String.format("    actor %s\n", name));
     }
 
     /**
-     * 添加一個從參與者發起的進入點呼叫。
-     * @param actorName    發起呼叫的參與者
-     * @param methodFqn    被呼叫的進入點方法的 FQN
+     * 添加一個 participant，支援安全 ID 與顯示名稱。
+     *
+     * @param safeId      Mermaid 允許的 ID（不可含空格、()<>等）
+     * @param displayName 顯示給人看的名稱（可包含原始符號）
      */
-    public void addEntryPointCall(String actorName, String methodFqn) {
-        String callee = AstClassUtil.getSimpleClassName(methodFqn);
-        String signature = AstClassUtil.getMethodSignature(methodFqn);
-        mermaidBuilder.append(String.format("    %s->>%s: %s\n", actorName, callee, signature));
+    public void addParticipant(String safeId, String displayName) {
+        mermaidBuilder.append(String.format("    participant %s as %s\n", safeId, displayName));
     }
 
     /**
-     * 添加一個方法呼叫的箭頭。
-     * @param caller    呼叫端的簡化類別名
-     * @param callee    被呼叫端的簡化類別名
-     * @param signature 方法簽名
+     * 添加從 Actor 到方法的進入點呼叫。
      */
-    public void addCall(String caller, String callee, String signature) {
-        mermaidBuilder.append(String.format("    %s->>%s: %s\n", caller, callee, signature));
+    public void addEntryPointCall(String actorName, String calleeId, String calleeDisplayName) {
+        addParticipant(calleeId, calleeDisplayName);
+        mermaidBuilder.append(String.format("    %s->>%s: %s\n",
+                actorName, calleeId, getMethodSignatureFromDisplayName(calleeDisplayName)));
     }
 
     /**
-     * 添加 'activate' 指令。
-     * @param participant 要啟動的參與者
+     * 添加方法呼叫箭頭。
      */
-    public void activate(String participant) {
-        mermaidBuilder.append(String.format("    activate %s\n", participant));
+    public void addCall(String callerId, String calleeId, String signature) {
+        mermaidBuilder.append(String.format("    %s->>%s: %s\n", callerId, calleeId, signature));
+    }
+
+    public void activate(String participantId) {
+        mermaidBuilder.append(String.format("    activate %s\n", participantId));
+    }
+
+    public void deactivate(String participantId) {
+        mermaidBuilder.append(String.format("    deactivate %s\n", participantId));
     }
 
     /**
-     * 添加 'deactivate' 指令。
-     * @param participant 要停用的參與者
+     * 1. 所有 participant / actor 移到最前面
+     * 2. 去除重複
      */
-    public void deactivate(String participant) {
-        mermaidBuilder.append(String.format("    deactivate %s\n", participant));
-    }
-
     @Override
     public String toString() {
-        return this.mermaidBuilder.toString();
+        String[] lines = this.mermaidBuilder.toString().split("\n");
+        StringBuilder result = new StringBuilder();
+        Set<String> participants = new LinkedHashSet<>();
+        StringBuilder others = new StringBuilder();
+
+        for (String line : lines) {
+            if (line.startsWith("sequenceDiagram")) {
+                continue; // 頭部會手動加
+            }
+            String trimmed = line.trim();
+            if (trimmed.startsWith("participant") || trimmed.startsWith("actor")) {
+                participants.add(line);
+            } else {
+                if (!trimmed.isBlank()) {
+                    others.append(line).append("\n");
+                }
+            }
+        }
+
+        // 組合輸出
+        result.append("sequenceDiagram\n");
+        for (String p : participants) {
+            result.append(p).append("\n");
+        }
+        result.append(others);
+        return result.toString();
+    }
+
+    /**
+     * 從 displayName（通常是 FQN）取出方法簽名。
+     */
+    private String getMethodSignatureFromDisplayName(String displayName) {
+        int lastDot = displayName.lastIndexOf('.');
+        return (lastDot >= 0) ? displayName.substring(lastDot + 1) : displayName;
     }
 }

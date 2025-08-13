@@ -2,11 +2,10 @@ package kai.javaparser.diagram;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import org.gradle.internal.impldep.org.apache.commons.lang.StringUtils;
 
 import kai.javaparser.diagram.filter.DefaultTraceFilter;
 import kai.javaparser.diagram.idx.AstIndex;
@@ -15,127 +14,108 @@ import kai.javaparser.model.AstNode;
 import kai.javaparser.model.FileAstData;
 
 /**
- * 主程式，負責生成序列圖。
- * <p>
- * 作為一個協調器，它將複雜的任務拆分給專門的元件處理：
- * 1. {@link AstIndex}: 負責高效地載入和查詢 AST 資訊。
- * 2. {@link TraceFilter}: 負責決定哪些方法呼叫應該被追蹤或忽略。
- * 3. {@link MermaidOutput}: 負責產生最終的 Mermaid 圖表語法。
- * <p>
- * 核心方法 {@code traceMethod} 採用遞迴方式追蹤方法呼叫鏈，並實現了智能的 activate/deactivate 邏輯：
- * 只有當一個方法內部確實包含有效的、未被過濾的下游呼叫時，才會為其生成 activate/deactivate 區塊，
- * 使產生的圖表更加簡潔和有意義。
- * </p>
+ * 序列圖生成器：
+ * 1. 載入 AST 索引
+ * 2. 遞迴追蹤方法呼叫
+ * 3. 產生 Mermaid 語法（安全 ID + 可還原 FQN）
  */
 public class SequenceDiagramGenerator {
 
-    public static void main(String[] args) {
-        if (args.length < 3 || args.length > 5) {
-            System.out.println(
-                    "使用方式: java SequenceDiagramGenerator <ast_json_dir> <entry_point_method_fqn> <package_scope> [excluded_classes_fqn]");
-            System.out.println(
-                    "範例: java SequenceDiagramGenerator build/parsed_asts com.example.MyClass.doSomething() com.example com.example.util,java.lang");
-            return;
-        }
-
+    public static String generate(String astDir, String entryPointMethodFqn, String packageScope,
+            String excludedClasses, String excludedMethods) {
         try {
-            // 1. 初始化元件
-            Path astJsonDir = Path.of(args[0]);
-            String entryPointMethodFqn = args[1];
-            String packageScope = args[2];
-
-            Set<String> exclusionClassSet = new HashSet<>();
-            Set<String> exclusionMethodSet = new HashSet<>();
-            if (args.length >= 4 && args[3] != null && !args[3].trim().isEmpty()) {
-                exclusionClassSet.addAll(Arrays.asList(args[3].split(",")));
-            }
-            if (args.length >= 5 && args[4] != null && !args[4].trim().isEmpty()) {
-                exclusionMethodSet.addAll(Arrays.asList(args[4].split(",")));
-            }
-
-            AstIndex astIndex = new AstIndex(astJsonDir);
-            astIndex.loadOrBuild(); // 從快取或檔案系統載入索引
-
-            TraceFilter filter = new DefaultTraceFilter(exclusionClassSet, exclusionMethodSet);
+            AstIndex astIndex = initAstIndex(astDir);
+            TraceFilter filter = new DefaultTraceFilter(parseCsv(excludedClasses), parseCsv(excludedMethods));
             MermaidOutput output = new MermaidOutput();
 
-            // 2. 設定進入點並開始追蹤
+            // 固定起點 Actor
             output.addActor("User");
-            output.addEntryPointCall("User", entryPointMethodFqn);
+            String entryClassFqn = AstClassUtil.getClassFqnFromMethodFqn(entryPointMethodFqn);
+            output.addEntryPointCall("User", safeMermaidId(entryClassFqn), entryClassFqn);
+
             traceMethod(entryPointMethodFqn, packageScope, filter, astIndex, output, new HashSet<>());
 
-            // 3. 輸出結果
             System.out.println("\n--- Mermaid 序列圖語法 ---");
             System.out.println(output.toString());
 
+            return output.toString();
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("執行期間發生錯誤: " + e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException("執行期間發生錯誤: " + e.getMessage(), e);
         }
     }
 
+    private static AstIndex initAstIndex(String astDir) throws IOException, ClassNotFoundException {
+        AstIndex astIndex = new AstIndex(Path.of(astDir));
+        astIndex.loadOrBuild();
+        return astIndex;
+    }
+
+    private static Set<String> parseCsv(String csv) {
+        if (StringUtils.isBlank(csv))
+            return Collections.emptySet();
+        return Arrays.stream(csv.split(",")).map(String::trim).collect(Collectors.toSet());
+    }
+
     /**
-     * 遞迴追蹤方法呼叫。
-     *
-     * @return 如果此方法或其任何下游呼叫產生了追蹤輸出，則返回 true。
+     * 遞迴追蹤方法呼叫
      */
     private static boolean traceMethod(String methodFqn, String packageScope, TraceFilter filter,
             AstIndex astIndex, MermaidOutput output, Set<String> callStack) {
-        // --- 防禦性檢查 ---
-        if (callStack.contains(methodFqn)) {
-            return false; // 避免無限遞迴
-        }
-        if (!methodFqn.startsWith(packageScope)) {
-            return false; // 過濾掉不在我們關心範圍內的方法
-        }
-        if (filter.shouldExclude(methodFqn, astIndex)) {
-            return false; // 被過濾器排除
-        }
+        if (!isTraceable(methodFqn, packageScope, filter, astIndex, callStack))
+            return false;
 
         String classFqn = AstClassUtil.getClassFqnFromMethodFqn(methodFqn);
         FileAstData astData = astIndex.getAstDataByClassFqn(classFqn);
-        if (astData == null) {
-            return false; // 找不到 AST 資訊
-        }
+        if (astData == null)
+            return false;
 
-        // --- 尋找此方法節點內的所有下游呼叫 ---
-        List<AstNode> invocations = astData.findMethodNode(methodFqn)
+        List<AstNode> validInvocations = astData.findMethodNode(methodFqn)
                 .map(astData::findMethodInvocations)
-                .orElse(List.of());
-
-        // 過濾掉不需追蹤的下游呼叫
-        List<AstNode> validInvocations = invocations.stream()
+                .orElse(List.of()).stream()
                 .filter(inv -> inv.getFullyQualifiedName() != null
                         && !filter.shouldExclude(inv.getFullyQualifiedName(), astIndex))
                 .collect(Collectors.toList());
 
-        // *** 核心邏輯: 如果沒有任何有效的下游呼叫，則不為此方法產生任何輸出 ***
-        if (validInvocations.isEmpty()) {
+        if (validInvocations.isEmpty())
             return false;
-        }
 
-        // --- 執行追蹤與輸出 ---
         callStack.add(methodFqn);
-        String callerSimpleName = AstClassUtil.getSimpleClassName(methodFqn);
-        output.activate(callerSimpleName);
 
-        boolean tracedSomethingDownstream = false;
+        String callerId = safeMermaidId(classFqn);
+        output.addParticipant(callerId, classFqn);
+        output.activate(callerId);
+
         for (AstNode invocation : validInvocations) {
-            String invokedMethodFqn = invocation.getFullyQualifiedName();
-            String calleeSimpleName = AstClassUtil.getSimpleClassName(invokedMethodFqn);
-            String methodSignature = AstClassUtil.getMethodSignature(invokedMethodFqn);
+            String calleeFqn = invocation.getFullyQualifiedName();
+            String calleeClassFqn = AstClassUtil.getClassFqnFromMethodFqn(calleeFqn);
+            String calleeId = safeMermaidId(calleeClassFqn);
 
-            output.addCall(callerSimpleName, calleeSimpleName, methodSignature);
+            output.addParticipant(calleeId, calleeClassFqn);
 
-            // 遞迴呼叫
-            if (traceMethod(invokedMethodFqn, packageScope, filter, astIndex, output, callStack)) {
-                tracedSomethingDownstream = true;
-            }
+            String methodSignature = AstClassUtil.getMethodSignature(calleeFqn);
+            output.addCall(callerId, calleeId, methodSignature);
+
+            traceMethod(calleeFqn, packageScope, filter, astIndex, output, callStack);
         }
 
-        output.deactivate(callerSimpleName);
+        output.deactivate(callerId);
         callStack.remove(methodFqn);
+        return true;
+    }
 
-        return true; // 因為我們至少產生了 activate/deactivate 和 call，所以返回 true
+    private static boolean isTraceable(String methodFqn, String packageScope, TraceFilter filter,
+            AstIndex astIndex, Set<String> callStack) {
+        if (callStack.contains(methodFqn))
+            return false;
+        if (!methodFqn.startsWith(packageScope))
+            return false;
+        return !filter.shouldExclude(methodFqn, astIndex);
+    }
+
+    /**
+     * 產生 Mermaid 安全 ID（以 simple class name 為基礎）
+     */
+    private static String safeMermaidId(String classFqn) {
+        return classFqn.replace(".", "_").replaceAll("[()<>]", "").replace(",", "__");
     }
 }

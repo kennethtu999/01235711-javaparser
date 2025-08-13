@@ -6,9 +6,10 @@ public class AstClassUtil {
         int lastDot = methodFqn.lastIndexOf('.', methodFqn.indexOf('('));
         return lastDot == -1 ? "" : methodFqn.substring(0, lastDot);
     }
-    
+
     /**
      * 進來可能是 Class FQN 或 Method FQN
+     * 
      * @param fqn
      * @return
      */
@@ -23,7 +24,7 @@ public class AstClassUtil {
             // Check if the FQN is a generic class
             int genericStart = classFqn.indexOf('<');
             if (genericStart != -1) {
-                lastDot = classFqn.substring(0,genericStart).lastIndexOf('.');
+                lastDot = classFqn.substring(0, genericStart).lastIndexOf('.');
                 return classFqn.substring(lastDot + 1, genericStart);
             } else {
                 return classFqn.substring(lastDot + 1);
