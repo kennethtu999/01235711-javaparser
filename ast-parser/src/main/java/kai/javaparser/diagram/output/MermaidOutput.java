@@ -1,7 +1,15 @@
 package kai.javaparser.diagram.output;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
+
+import kai.javaparser.diagram.output.bo.IMermaidItem;
+import kai.javaparser.diagram.output.bo.MermailActivate;
+import kai.javaparser.diagram.output.bo.MermailActor;
+import kai.javaparser.diagram.output.bo.MermailCall;
+import kai.javaparser.diagram.output.bo.MermailParticipant;
 
 /**
  * 負責生成 Mermaid 序列圖語法。
@@ -10,11 +18,10 @@ import java.util.Set;
  * - 保留原始 FQN 方便將來反向解析
  */
 public class MermaidOutput {
-    private final StringBuilder mermaidBuilder;
+    private List<IMermaidItem> mermaidList;
 
     public MermaidOutput() {
-        this.mermaidBuilder = new StringBuilder();
-        this.mermaidBuilder.append("sequenceDiagram\n");
+        this.mermaidList = new ArrayList<>();
     }
 
     /**
@@ -23,7 +30,7 @@ public class MermaidOutput {
      * @param name 顯示名稱
      */
     public void addActor(String name) {
-        mermaidBuilder.append(String.format("    actor %s\n", name));
+        mermaidList.add(new MermailActor(name));
     }
 
     /**
@@ -33,7 +40,7 @@ public class MermaidOutput {
      * @param displayName 顯示給人看的名稱（可包含原始符號）
      */
     public void addParticipant(String safeId, String displayName) {
-        mermaidBuilder.append(String.format("    participant %s as %s\n", safeId, displayName));
+        mermaidList.add(new MermailParticipant(safeId, displayName));
     }
 
     /**
@@ -41,56 +48,64 @@ public class MermaidOutput {
      */
     public void addEntryPointCall(String actorName, String calleeId, String calleeDisplayName) {
         addParticipant(calleeId, calleeDisplayName);
-        mermaidBuilder.append(String.format("    %s->>%s: %s\n",
-                actorName, calleeId, getMethodSignatureFromDisplayName(calleeDisplayName)));
+        mermaidList.add(new MermailCall(actorName, calleeId, getMethodSignatureFromDisplayName(calleeDisplayName)));
     }
 
     /**
      * 添加方法呼叫箭頭。
      */
     public void addCall(String callerId, String calleeId, String signature) {
-        mermaidBuilder.append(String.format("    %s->>%s: %s\n", callerId, calleeId, signature));
+        mermaidList.add(new MermailCall(callerId, calleeId, signature));
     }
 
     public void activate(String participantId) {
-        mermaidBuilder.append(String.format("    activate %s\n", participantId));
+        mermaidList.add(new MermailActivate(participantId, true));
     }
 
     public void deactivate(String participantId) {
-        mermaidBuilder.append(String.format("    deactivate %s\n", participantId));
+        mermaidList.add(new MermailActivate(participantId, false));
     }
 
     /**
      * 1. 所有 participant / actor 移到最前面
      * 2. 去除重複
+     * 3. activate 與 deactivate 要成對出現，每多一層 activate 就加兩個空格
      */
     @Override
     public String toString() {
-        String[] lines = this.mermaidBuilder.toString().split("\n");
         StringBuilder result = new StringBuilder();
-        Set<String> participants = new LinkedHashSet<>();
-        StringBuilder others = new StringBuilder();
+        Set<IMermaidItem> participants = new LinkedHashSet<>();
+        List<IMermaidItem> otherItems = new ArrayList<>();
 
-        for (String line : lines) {
-            if (line.startsWith("sequenceDiagram")) {
-                continue; // 頭部會手動加
-            }
-            String trimmed = line.trim();
-            if (trimmed.startsWith("participant") || trimmed.startsWith("actor")) {
-                participants.add(line);
+        // 分類所有項目
+        for (IMermaidItem item : mermaidList) {
+            String line = item.toString();
+            if (item instanceof MermailParticipant || item instanceof MermailActor) {
+                participants.add(item);
             } else {
-                if (!trimmed.isBlank()) {
-                    others.append(line).append("\n");
-                }
+                otherItems.add(item);
             }
         }
 
         // 組合輸出
         result.append("sequenceDiagram\n");
-        for (String p : participants) {
-            result.append(p).append("\n");
+
+        // 先輸出所有 participants 和 actors
+        for (IMermaidItem participant : participants) {
+            result.append(participant.toDiagramString(0)).append("\n");
         }
-        result.append(others);
+
+        // 再輸出其他項目（calls, activates, deactivates）
+        int indentLevel = 0;
+        for (IMermaidItem item : otherItems) {
+            result.append(item.toDiagramString(indentLevel)).append("\n");
+            if (item instanceof MermailActivate && ((MermailActivate) item).isActivate()) {
+                indentLevel += 2;
+            } else if (item instanceof MermailActivate && !((MermailActivate) item).isActivate()) {
+                indentLevel -= 2;
+            }
+        }
+
         return result.toString();
     }
 
