@@ -46,11 +46,11 @@ public class DefaultTraceFilter implements TraceFilter {
             return true;
         }
 
-        // 規則 3: 檢查是否為 Getter/Setter
-        if (astIndex.isGetterSetter(methodFqn)) {
-            System.err.println("INFO: 已跳過追蹤 Getter/Setter: " + methodFqn);
-            return true;
-        }
+        // // 規則 3: 檢查是否為 Getter/Setter
+        // if (astIndex.isGetterSetter(methodFqn)) {
+        // System.err.println("INFO: 已跳過追蹤 Getter/Setter: " + methodFqn);
+        // return true;
+        // }
 
         return false;
     }

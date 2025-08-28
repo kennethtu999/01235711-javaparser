@@ -112,9 +112,11 @@ public class AstIndex {
                     .forEach(jsonFile -> {
                         FileAstData astData = getAstDataFromFile(jsonFile);
                         // 假設一個 Java 檔案只定義一個 public 頂層類別
-                        astData.findTopLevelClassFqn().ifPresent(classFqn -> {
-                            classToPathIndex.put(classFqn, jsonFile);
-                        });
+                        if (astData != null) {
+                            astData.findTopLevelClassFqn().ifPresent(classFqn -> {
+                                classToPathIndex.put(classFqn, jsonFile);
+                            });
+                        }
                     });
         }
     }
@@ -137,41 +139,21 @@ public class AstIndex {
         return astDataCache.computeIfAbsent(path, this::getAstDataFromFile);
     }
 
-    /**
-     * 檢查指定的方法是否為其類別中某個欄位的 getter 或 setter。
-     *
-     * @param methodFqn 要檢查的方法的完整限定名
-     * @return 如果是 getter/setter 則返回 true
-     */
-    public boolean isGetterSetter(String methodFqn) {
-        String classFqn = AstClassUtil.getClassFqnFromMethodFqn(methodFqn);
-        String methodName = AstClassUtil.getMethodSignature(methodFqn)
-                .replaceAll("\\(.*\\)", ""); // 移除參數部分
-
-        if (!methodName.startsWith("get") && !methodName.startsWith("set")) {
-            return false;
-        }
-
-        FileAstData astData = getAstDataByClassFqn(classFqn);
-        if (astData == null) {
-            return false;
-        }
-
-        // 將 get/set 後面的名稱轉換為欄位名稱 (首字母小寫)
-        String potentialFieldName = methodName.substring(3);
-        if (potentialFieldName.isEmpty()) {
-            return false;
-        }
-        potentialFieldName = Character.toLowerCase(potentialFieldName.charAt(0)) + potentialFieldName.substring(1);
-
-        return astData.hasField(potentialFieldName);
-    }
-
     private FileAstData getAstDataFromFile(Path path) {
         try {
-            return objectMapper.readValue(path.toFile(), FileAstData.class);
+            FileAstData result = objectMapper.readValue(path.toFile(), FileAstData.class);
+            if (result == null) {
+                System.err.println("JSON 解析結果為 null: " + path);
+                return null;
+            }
+            return result;
         } catch (IOException e) {
-            System.err.println("讀取或解析 AST 檔案失敗: " + path);
+            System.err.println("讀取或解析 AST 檔案失敗: " + path + ", 錯誤: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        } catch (Exception e) {
+            System.err.println("解析 AST 檔案時發生未知錯誤: " + path + ", 錯誤: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }

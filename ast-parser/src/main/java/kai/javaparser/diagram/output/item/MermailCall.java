@@ -1,9 +1,11 @@
-package kai.javaparser.diagram.output.bo;
+package kai.javaparser.diagram.output.item;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
-public class MermailCall implements IMermaidItem {
+@Getter
+@Setter
+public class MermailCall extends AbstractMermaidItem {
 
     private String actorName;
     private String calleeId;
@@ -17,8 +19,8 @@ public class MermailCall implements IMermaidItem {
 
     @Override
     public String toDiagramString(int indentLevel) {
-        return String.format("%s%s->>%s: %s", " ".repeat(indentLevel), actorName, calleeId,
-                methodSignatureFromDisplayName);
+        return getFullContent(indentLevel, String.format("%s->>%s: %s", actorName, calleeId,
+                methodSignatureFromDisplayName));
     }
 
 }

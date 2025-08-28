@@ -5,20 +5,25 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import kai.javaparser.diagram.output.bo.IMermaidItem;
-import kai.javaparser.diagram.output.bo.MermailActivate;
-import kai.javaparser.diagram.output.bo.MermailActor;
-import kai.javaparser.diagram.output.bo.MermailCall;
-import kai.javaparser.diagram.output.bo.MermailParticipant;
+import kai.javaparser.diagram.output.item.AbstractMermaidItem;
+import kai.javaparser.diagram.output.item.AltFragment;
+import kai.javaparser.diagram.output.item.EndFragment;
+import kai.javaparser.diagram.output.item.LoopFragment;
+import kai.javaparser.diagram.output.item.MermailActivate;
+import kai.javaparser.diagram.output.item.MermailActor;
+import kai.javaparser.diagram.output.item.MermailCall;
+import kai.javaparser.diagram.output.item.MermailParticipant;
+import kai.javaparser.diagram.output.item.OptFragment;
 
 /**
  * 負責生成 Mermaid 序列圖語法。
  * 支援：
  * - participant <safeId> as <displayName>
  * - 保留原始 FQN 方便將來反向解析
+ * - 控制流程片段 (alt, opt, loop)
  */
 public class MermaidOutput {
-    private List<IMermaidItem> mermaidList;
+    private List<AbstractMermaidItem> mermaidList;
 
     public MermaidOutput() {
         this.mermaidList = new ArrayList<>();
@@ -48,7 +53,7 @@ public class MermaidOutput {
      */
     public void addEntryPointCall(String actorName, String calleeId, String calleeDisplayName) {
         addParticipant(calleeId, calleeDisplayName);
-        mermaidList.add(new MermailCall(actorName, calleeId, getMethodSignatureFromDisplayName(calleeDisplayName)));
+        mermaidList.add(new MermailCall(actorName, calleeId, calleeDisplayName));
     }
 
     /**
@@ -67,18 +72,47 @@ public class MermaidOutput {
     }
 
     /**
+     * 添加替代片段 (alt) - 用於 if/else 結構
+     */
+    public void addAltFragment(String condition) {
+        mermaidList.add(new AltFragment(condition));
+    }
+
+    /**
+     * 添加可選片段 (opt) - 用於單個 if 結構
+     */
+    public void addOptFragment(String condition) {
+        mermaidList.add(new OptFragment(condition));
+    }
+
+    /**
+     * 添加循環片段 (loop) - 用於 for/while 結構
+     */
+    public void addLoopFragment(String condition) {
+        mermaidList.add(new LoopFragment(condition));
+    }
+
+    /**
+     * 結束控制流程片段
+     */
+    public void endFragment() {
+        mermaidList.add(new EndFragment());
+    }
+
+    /**
      * 1. 所有 participant / actor 移到最前面
      * 2. 去除重複
      * 3. activate 與 deactivate 要成對出現，每多一層 activate 就加兩個空格
+     * 4. 控制流程片段需要適當的縮排
      */
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();
-        Set<IMermaidItem> participants = new LinkedHashSet<>();
-        List<IMermaidItem> otherItems = new ArrayList<>();
+        Set<AbstractMermaidItem> participants = new LinkedHashSet<>();
+        List<AbstractMermaidItem> otherItems = new ArrayList<>();
 
         // 分類所有項目
-        for (IMermaidItem item : mermaidList) {
+        for (AbstractMermaidItem item : mermaidList) {
             String line = item.toString();
             if (item instanceof MermailParticipant || item instanceof MermailActor) {
                 participants.add(item);
@@ -91,29 +125,27 @@ public class MermaidOutput {
         result.append("sequenceDiagram\n");
 
         // 先輸出所有 participants 和 actors
-        for (IMermaidItem participant : participants) {
+        for (AbstractMermaidItem participant : participants) {
             result.append(participant.toDiagramString(0)).append("\n");
         }
 
-        // 再輸出其他項目（calls, activates, deactivates）
+        // 再輸出其他項目（calls, activates, deactivates, control flow fragments）
         int indentLevel = 0;
-        for (IMermaidItem item : otherItems) {
+        for (AbstractMermaidItem item : otherItems) {
             result.append(item.toDiagramString(indentLevel)).append("\n");
+            // System.out.println(indentLevel + " " + item.getClass().getSimpleName());
+
             if (item instanceof MermailActivate && ((MermailActivate) item).isActivate()) {
-                indentLevel += 2;
+                indentLevel += 1;
             } else if (item instanceof MermailActivate && !((MermailActivate) item).isActivate()) {
-                indentLevel -= 2;
+                indentLevel -= 1;
+            } else if (item instanceof AltFragment || item instanceof OptFragment || item instanceof LoopFragment) {
+                indentLevel += 1;
+            } else if (item instanceof EndFragment) {
+                indentLevel -= 1;
             }
         }
 
         return result.toString();
-    }
-
-    /**
-     * 從 displayName（通常是 FQN）取出方法簽名。
-     */
-    private String getMethodSignatureFromDisplayName(String displayName) {
-        int lastDot = displayName.lastIndexOf('.');
-        return (lastDot >= 0) ? displayName.substring(lastDot + 1) : displayName;
     }
 }

@@ -21,12 +21,15 @@ import kai.javaparser.util.Util;
 public class AstParserApp {
 
     private static final Logger logger = LoggerFactory.getLogger(AstParserApp.class);
-    
+
     public static void main(String[] args) {
         if (args.length < 4) { // Now expecting at least 3 arguments: sourceRoots, outputDir, classpath
-            System.out.println("Usage: java -jar java-ast-parser.jar <base_folder> <source_root_dir1,...> <output_dir> <classpath_item1,...> [java_compliance_level]");
-            System.out.println("Example: java -jar java-ast-parser.jar /path/to/base/folder /path/to/src/main/java /path/to/output /path/to/classes,/path/to/lib.jar 17");
-            System.out.println("Note: <classpath_item1,...> should be comma-separated absolute paths to JARs or compiled class directories.");
+            System.out.println(
+                    "Usage: java -jar java-ast-parser.jar <base_folder> <source_root_dir1,...> <output_dir> <classpath_item1,...> [java_compliance_level]");
+            System.out.println(
+                    "Example: java -jar java-ast-parser.jar /path/to/base/folder /path/to/src/main/java /path/to/output /path/to/classes,/path/to/lib.jar 17");
+            System.out.println(
+                    "Note: <classpath_item1,...> should be comma-separated absolute paths to JARs or compiled class directories.");
             return;
         }
 
@@ -36,20 +39,21 @@ public class AstParserApp {
         String classpathArg = args[3]; // New argument for classpath
         String javaComplianceLevel = args.length > 3 ? args[3] : JavaCore.VERSION_17; // Default to Java 17
 
-
         AstParserApp instance = new AstParserApp();
         instance.execute(baseFolder, sourceRootDirsArg, outputBaseDir, classpathArg, javaComplianceLevel);
     }
 
     /**
      * Execute the AST parsing for the given arguments.
+     * 
      * @param baseFolder
      * @param sourceRootDirsArg
      * @param outputBaseDir
      * @param classpathArg
      * @param javaComplianceLevel
      */
-    public void execute(String baseFolder, String sourceRootDirsArg, String outputBaseDir, String classpathArg, String javaComplianceLevel) {
+    public void execute(String baseFolder, String sourceRootDirsArg, String outputBaseDir, String classpathArg,
+            String javaComplianceLevel) {
         Path outputBaseDir0 = Paths.get(outputBaseDir);
 
         Set<Path> sourceRoots = Stream.of(sourceRootDirsArg.split(","))
@@ -71,9 +75,9 @@ public class AstParserApp {
 
         // Parse the new classpath argument
         Stream.of(classpathArg.split(","))
-              .filter(s -> !s.trim().isEmpty()) // Filter out empty strings if multiple commas
-              .map(s -> Paths.get(s).toAbsolutePath().toString()) // Resolve to absolute path
-              .forEach(projectClasspathList::add);
+                .filter(s -> !s.trim().isEmpty()) // Filter out empty strings if multiple commas
+                .map(s -> Paths.get(s).toAbsolutePath().toString()) // Resolve to absolute path
+                .forEach(projectClasspathList::add);
 
         // Convert lists to arrays for JDT Extractor
         String[] projectSources = projectSourcesList.toArray(new String[0]);
@@ -104,32 +108,37 @@ public class AstParserApp {
                 logger.info("Found {} Java files in {}", javaFiles.size(), sourceRoot);
 
                 // Determine a unique prefix for files from this source root
-                // Use a hash of the absolute path to avoid conflicts for same-named files from different roots
+                // Use a hash of the absolute path to avoid conflicts for same-named files from
+                // different roots
                 String uniquePrefix = sourceRoot.toAbsolutePath().toString().replace(baseFolder, "").replace("/", "_");
 
                 javaFiles.parallelStream()
-                .map(path -> astExtractor.parseJavaFile(path, projectSources, projectClasspath, javaComplianceLevel))
-                .forEach(fileAstData -> {
-                    if (fileAstData != null) {
-                        Path relativePath = sourceRoot.relativize(Paths.get(fileAstData.getAbsolutePath()));
-                        fileAstData.setRelativePath(relativePath.toString()); // Set relative path for output
-                        
-                        // Construct a unique output filename in a subdirectory specific to the sourceRoot
-                        Path outputFile0 = outputBaseDir0.resolve(uniquePrefix) // Add uniquePrefix as a subdirectory
-                                                      .resolve(relativePath.toString());
-                        Path outputFile = outputBaseDir0.resolve(uniquePrefix) // Add uniquePrefix as a subdirectory
-                                                      .resolve(relativePath.toString().replace(".java", ".json"));
-                        try {
-                            Files.createDirectories(outputFile.getParent()); // Ensure parent directories exist
-                            Util.writeJson(outputFile, fileAstData);
-                            
-                            Files.writeString(outputFile0, new String(fileAstData.getFileContent()), Charset.forName("UTF-8"));
-                        
-                        } catch (IOException e) {
-                            logger.error("Error writing AST to {}: {}", outputFile, e.getMessage());
-                        }
-                    }
-                });
+                        .map(path -> astExtractor.parseJavaFile(path, projectSources, projectClasspath,
+                                javaComplianceLevel))
+                        .forEach(fileAstData -> {
+                            if (fileAstData != null) {
+                                Path relativePath = sourceRoot.relativize(Paths.get(fileAstData.getAbsolutePath()));
+                                fileAstData.setRelativePath(relativePath.toString()); // Set relative path for output
+
+                                // Construct a unique output filename in a subdirectory specific to the
+                                // sourceRoot
+                                Path outputFile0 = outputBaseDir0.resolve(uniquePrefix) // Add uniquePrefix
+                                        .resolve(relativePath.toString());
+                                Path outputFile = outputBaseDir0.resolve(uniquePrefix) // Add uniquePrefix as a
+                                        // subdirectory
+                                        .resolve(relativePath.toString().replace(".java", ".json"));
+                                try {
+                                    Files.createDirectories(outputFile.getParent()); // Ensure parent directories exist
+                                    Util.writeJson(outputFile, fileAstData);
+
+                                    Files.writeString(outputFile0, new String(fileAstData.getFileContent()),
+                                            Charset.forName("UTF-8"));
+
+                                } catch (IOException e) {
+                                    logger.error("Error writing AST to {}: {}", outputFile, e.getMessage());
+                                }
+                            }
+                        });
 
             } catch (IOException e) {
                 logger.error("Error walking source directory {}: {}", sourceRoot, e.getMessage());

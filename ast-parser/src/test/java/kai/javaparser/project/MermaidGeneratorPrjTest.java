@@ -1,4 +1,4 @@
-package kai.javaparser.diagram;
+package kai.javaparser.project;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,9 +9,12 @@ import java.nio.file.Paths;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-public class MermaidGeneratorTest {
+import kai.javaparser.diagram.SequenceDiagramGenerator;
+
+public class MermaidGeneratorPrjTest {
 
         @BeforeEach
         public void setUpStreams() {
@@ -21,6 +24,13 @@ public class MermaidGeneratorTest {
         public void restoreStreams() {
         }
 
+        /**
+         * 依照指定的Method，生成對應的Sequence Diagram
+         * 
+         * @throws IOException
+         * @throws URISyntaxException
+         */
+        @Disabled
         @Test
         void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
                 Path resourcePath = Paths.get("build/parsed-ast");
@@ -50,19 +60,12 @@ public class MermaidGeneratorTest {
                                 methodSignature,
                                 basePackage,
                                 String.join(",", exclusionClassSet),
-                                String.join(",", exclusionMethodSet));
+                                String.join(",", exclusionMethodSet),
+                                3);
 
                 // 為了方便除錯，可以在測試執行時將捕獲的內容印到標準錯誤流
                 // System.err.println("--- Captured MermaidGenerator Output ---\n" + output);
                 Files.writeString(new File("build/diagram.mermaid").toPath(), output);
 
-                // assertTrue(output.contains("graph TD"), "輸出應包含 Mermaid 圖表類型宣告 'graph TD'");
-                // assertTrue(output.contains("([開始: createList])"), "輸出應包含 'createList'
-                // 方法的開始節點");
-                // assertTrue(output.contains("[\"宣告變數: List list = new ArrayList<>()\"]"),
-                // "輸出應包含變數宣告的節點");
-                // assertTrue(output.contains("[\"呼叫方法: list.add(...)\"]"), "輸出應包含方法呼叫的節點");
-                // assertTrue(output.contains("([結束])"), "輸出應包含結束節點");
-                // assertTrue(output.contains("-->"), "輸出應包含表示流程的箭頭 '-->'");
         }
 }

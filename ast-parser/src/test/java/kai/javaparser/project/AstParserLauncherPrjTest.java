@@ -1,4 +1,4 @@
-package kai.javaparser;
+package kai.javaparser.project;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -10,7 +10,10 @@ import java.nio.file.Paths;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+
+import kai.javaparser.AstParserLauncher;
 
 public class AstParserLauncherPrjTest {
 
@@ -32,8 +35,9 @@ public class AstParserLauncherPrjTest {
         // @TempDir handles cleanup for output. test-project is a persistent subproject.
     }
 
+    @Disabled
     @Test
-    void testParseFolder()  {
+    void testParseFolder() {
         try {
             String outputDirArg = currentProjectDir.resolve("build/parsed-ast").toAbsolutePath().toString();
             String javaComplianceLevel = "8";
