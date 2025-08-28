@@ -205,8 +205,7 @@ public class EnhancedInteractionModelVisitor extends ASTVisitor {
     // 這是處理 EnhancedForStatement 的方法
     @Override
     public boolean visit(EnhancedForStatement node) {
-        String condition = "enhanced for loop (" + node.getParameter().getName().getIdentifier() + " : "
-                + node.getExpression().toString() + ")";
+        String condition = node.getParameter().getName().getIdentifier() + " : " + node.getExpression().toString();
         return handleLoopFragment(node, condition);
     }
 

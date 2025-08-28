@@ -2,6 +2,10 @@ package kai.javaparser.diagram.filter;
 
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.diagram.TraceFilter;
 import kai.javaparser.diagram.idx.AstIndex;
@@ -16,6 +20,7 @@ import kai.javaparser.diagram.idx.AstIndex;
  * </p>
  */
 public class DefaultTraceFilter implements TraceFilter {
+    private final Logger logger = LoggerFactory.getLogger(DefaultTraceFilter.class);
 
     private final Set<String> excludedClassPrefixes;
     private final Set<String> excludedMethodNames;
@@ -26,23 +31,22 @@ public class DefaultTraceFilter implements TraceFilter {
     }
 
     @Override
-    public boolean shouldExclude(String methodFqn, AstIndex astIndex) {
-        if (methodFqn == null || methodFqn.isEmpty()) {
+    public boolean shouldExclude(String classFqn, String simpleMethodName, AstIndex astIndex) {
+        logger.info("INFO: 檢查是否排除方法: {} {}", classFqn, simpleMethodName);
+
+        if (StringUtils.isEmpty(classFqn) || StringUtils.isEmpty(simpleMethodName)) {
             return true;
         }
 
-        String classFqn = AstClassUtil.getClassFqnFromMethodFqn(methodFqn);
-        String simpleMethodName = AstClassUtil.getMethodSignature(methodFqn).split("\\(")[0];
-
         // 規則 1: 檢查是否符合被排除的類別前綴
         if (excludedClassPrefixes.stream().anyMatch(classFqn::startsWith)) {
-            System.err.println("INFO: 已跳過追蹤符合排除前綴的類別: " + classFqn);
+            logger.info("INFO: 已跳過追蹤符合排除前綴的類別: {}", classFqn);
             return true;
         }
 
         // 規則 2: 檢查是否為被排除的特定方法名稱
         if (excludedMethodNames.contains(simpleMethodName)) {
-            System.err.println("INFO: 已跳過追蹤被排除的方法名稱: " + simpleMethodName);
+            logger.info("INFO: 已跳過追蹤被排除的方法名稱: {}", simpleMethodName);
             return true;
         }
 
@@ -53,5 +57,11 @@ public class DefaultTraceFilter implements TraceFilter {
         // }
 
         return false;
+    }
+
+    @Override
+    public boolean shouldExclude(String methodFqn, AstIndex astIndex) {
+        return shouldExclude(AstClassUtil.getClassFqnFromMethodFqn(methodFqn),
+                AstClassUtil.getSimpleClassName(methodFqn), astIndex);
     }
 }

@@ -5,6 +5,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
+
 import kai.javaparser.diagram.output.item.AbstractMermaidItem;
 import kai.javaparser.diagram.output.item.AltFragment;
 import kai.javaparser.diagram.output.item.EndFragment;
@@ -12,6 +14,7 @@ import kai.javaparser.diagram.output.item.LoopFragment;
 import kai.javaparser.diagram.output.item.MermailActivate;
 import kai.javaparser.diagram.output.item.MermailActor;
 import kai.javaparser.diagram.output.item.MermailCall;
+import kai.javaparser.diagram.output.item.MermailCallback;
 import kai.javaparser.diagram.output.item.MermailParticipant;
 import kai.javaparser.diagram.output.item.OptFragment;
 
@@ -25,8 +28,11 @@ import kai.javaparser.diagram.output.item.OptFragment;
 public class MermaidOutput {
     private List<AbstractMermaidItem> mermaidList;
 
+    private Set<String> participantIds;
+
     public MermaidOutput() {
         this.mermaidList = new ArrayList<>();
+        this.participantIds = new LinkedHashSet<>();
     }
 
     /**
@@ -45,6 +51,11 @@ public class MermaidOutput {
      * @param displayName 顯示給人看的名稱（可包含原始符號）
      */
     public void addParticipant(String safeId, String displayName) {
+        if (participantIds.contains(safeId)) {
+            return;
+        }
+
+        participantIds.add(safeId);
         mermaidList.add(new MermailParticipant(safeId, displayName));
     }
 
@@ -53,14 +64,20 @@ public class MermaidOutput {
      */
     public void addEntryPointCall(String actorName, String calleeId, String calleeDisplayName) {
         addParticipant(calleeId, calleeDisplayName);
-        mermaidList.add(new MermailCall(actorName, calleeId, calleeDisplayName));
+        mermaidList.add(new MermailCall(actorName, calleeId, calleeDisplayName, null));
     }
 
     /**
      * 添加方法呼叫箭頭。
      */
-    public void addCall(String callerId, String calleeId, String signature) {
-        mermaidList.add(new MermailCall(callerId, calleeId, signature));
+    public void addCall(String callerId, String calleeId, String signature, List<String> arguments,
+            String assignedToVariable) {
+        mermaidList.add(new MermailCall(callerId, calleeId, signature, arguments));
+        if (StringUtils.isNotEmpty(assignedToVariable)) {
+            activate(calleeId);
+            mermaidList.add(new MermailCallback(calleeId, callerId, assignedToVariable));
+            deactivate(calleeId);
+        }
     }
 
     public void activate(String participantId) {
@@ -113,7 +130,6 @@ public class MermaidOutput {
 
         // 分類所有項目
         for (AbstractMermaidItem item : mermaidList) {
-            String line = item.toString();
             if (item instanceof MermailParticipant || item instanceof MermailActor) {
                 participants.add(item);
             } else {

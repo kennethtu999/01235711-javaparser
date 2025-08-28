@@ -8,7 +8,13 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.gradle.internal.impldep.org.apache.commons.lang.StringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +22,8 @@ import org.junit.jupiter.api.Test;
 
 import kai.javaparser.AstParserLauncher;
 import kai.javaparser.diagram.SequenceDiagramGenerator;
+import kai.javaparser.diagram.TraceFilter;
+import kai.javaparser.diagram.filter.DefaultTraceFilter;
 
 public class MermaidGeneratorTest {
 
@@ -53,15 +61,16 @@ public class MermaidGeneratorTest {
         @Test
         void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
                 Path resourcePath = Paths.get("build/parsed-ast");
-                String methodSignature = "com.example.case2.CASEMain2.initViewForm2()";
+                String methodSignature = "com.example.case2.CASEMain2.initViewForm()";
                 String basePackage = "com.example";
-                String[] exclusionClassSet = {
+                Set<String> exclusionClassSet = new HashSet<>(Arrays.asList(
                                 "org",
                                 "java",
                                 "com.ibm.tw.commons",
-                                "com.scsb.ewb.j2ee" };
+                                "com.scsb.ewb.j2ee",
+                                "java.util.logging.Logger"));
 
-                String[] exclusionMethodSet = {
+                Set<String> exclusionMethodSet = new HashSet<>(Arrays.asList(
                                 "getBundleString",
                                 "setWidth",
                                 "setStyleClass",
@@ -70,16 +79,16 @@ public class MermaidGeneratorTest {
                                 "setAlign",
                                 "getDisplayMoney",
                                 "add",
-                                "addRecord"
-                };
+                                "addRecord"));
+
+                TraceFilter filter = new DefaultTraceFilter(exclusionClassSet, exclusionMethodSet);
 
                 // Act: 執行 MermaidGenerator 的 main 方法
                 String output = SequenceDiagramGenerator.generate(
                                 resourcePath.toAbsolutePath().toString(),
                                 methodSignature,
                                 basePackage,
-                                String.join(",", exclusionClassSet),
-                                String.join(",", exclusionMethodSet),
+                                filter,
                                 2);
 
                 // 為了方便除錯，可以在測試執行時將捕獲的內容印到標準錯誤流
@@ -107,5 +116,11 @@ public class MermaidGeneratorTest {
                         }
                 }
                 return directoryToBeDeleted.delete();
+        }
+
+        private static Set<String> parseCsv(String csv) {
+                if (StringUtils.isBlank(csv))
+                        return Collections.emptySet();
+                return Arrays.stream(csv.split(",")).map(String::trim).collect(Collectors.toSet());
         }
 }

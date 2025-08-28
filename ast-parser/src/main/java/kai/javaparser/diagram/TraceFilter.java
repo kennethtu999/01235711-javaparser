@@ -17,5 +17,8 @@ public interface TraceFilter {
      *                  可用於實現更複雜的過濾規則 (例如，判斷是否為 getter/setter)。
      * @return 如果應該排除，則返回 true；否則返回 false。
      */
+    boolean shouldExclude(String classFqn, String methodName, AstIndex astIndex);
+
     boolean shouldExclude(String methodFqn, AstIndex astIndex);
+
 }
