@@ -1,4 +1,4 @@
-package kai.javaparser.project;
+package kai.javaparser.case9;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import kai.javaparser.diagram.SequenceDiagramGenerator;
+import kai.javaparser.diagram.SequenceDiagramOutputConfig;
 import kai.javaparser.diagram.TraceFilter;
 import kai.javaparser.diagram.filter.DefaultTraceFilter;
 
@@ -62,13 +63,20 @@ public class MermaidGeneratorPrjTest {
 
                 TraceFilter filter = new DefaultTraceFilter(exclusionClassSet, exclusionMethodSet);
 
+                SequenceDiagramOutputConfig config = SequenceDiagramOutputConfig.builder()
+                                .depth(2)
+                                .hideDetailsInConditionals(false)
+                                .hideDetailsInChainExpression(false)
+                                .basePackage(basePackage)
+                                .filter(filter)
+                                .build();
+
                 // Act: 執行 MermaidGenerator 的 main 方法
-                String output = SequenceDiagramGenerator.generate(
-                                resourcePath.toAbsolutePath().toString(),
-                                methodSignature,
-                                basePackage,
-                                filter,
-                                3);
+                SequenceDiagramGenerator generator = SequenceDiagramGenerator.builder()
+                                .astDir(resourcePath.toAbsolutePath().toString())
+                                .config(config)
+                                .build();
+                String output = generator.generate(methodSignature);
 
                 // 為了方便除錯，可以在測試執行時將捕獲的內容印到標準錯誤流
                 // System.err.println("--- Captured MermaidGenerator Output ---\n" + output);

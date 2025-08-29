@@ -8,13 +8,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-import org.gradle.internal.impldep.org.apache.commons.lang.StringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,8 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import kai.javaparser.AstParserLauncher;
 import kai.javaparser.diagram.SequenceDiagramGenerator;
-import kai.javaparser.diagram.TraceFilter;
-import kai.javaparser.diagram.filter.DefaultTraceFilter;
+import kai.javaparser.diagram.SequenceDiagramOutputConfig;
 
 public class MermaidGeneratorTest {
 
@@ -61,47 +54,26 @@ public class MermaidGeneratorTest {
         @Test
         void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
                 Path resourcePath = Paths.get("build/parsed-ast");
-                String methodSignature = "com.example.case2.CASEMain2.initViewForm()";
-                String basePackage = "com.example";
-                Set<String> exclusionClassSet = new HashSet<>(Arrays.asList(
-                                "org",
-                                "java",
-                                "com.ibm.tw.commons",
-                                "com.scsb.ewb.j2ee",
-                                "java.util.logging.Logger"));
+                String methodSignature = "com.example.case2.LoginUser.getFXQueryAcntList()";
 
-                Set<String> exclusionMethodSet = new HashSet<>(Arrays.asList(
-                                "getBundleString",
-                                "setWidth",
-                                "setStyleClass",
-                                "addHeader",
-                                "setColspan",
-                                "setAlign",
-                                "getDisplayMoney",
-                                "add",
-                                "addRecord"));
-
-                TraceFilter filter = new DefaultTraceFilter(exclusionClassSet, exclusionMethodSet);
+                SequenceDiagramOutputConfig config = SequenceDiagramOutputConfig.builder()
+                                .depth(2)
+                                .hideDetailsInConditionals(false)
+                                .hideDetailsInChainExpression(false)
+                                .basePackage("com.example")
+                                .build();
 
                 // Act: 執行 MermaidGenerator 的 main 方法
-                String output = SequenceDiagramGenerator.generate(
-                                resourcePath.toAbsolutePath().toString(),
-                                methodSignature,
-                                basePackage,
-                                filter,
-                                2);
+                SequenceDiagramGenerator generator = SequenceDiagramGenerator.builder()
+                                .astDir(resourcePath.toAbsolutePath().toString())
+                                .config(config)
+                                .build();
+                String output = generator.generate(methodSignature);
 
                 // 為了方便除錯，可以在測試執行時將捕獲的內容印到標準錯誤流
                 // System.err.println("--- Captured MermaidGenerator Output ---\n" + output);
                 Files.writeString(new File("build/diagram.mermaid").toPath(), output);
 
-                // assertTrue(output.contains("sequenceDiagram"), "輸出應包含 Mermaid 序列圖類型宣告
-                // 'sequenceDiagram'");
-                // assertTrue(output.contains("participant"), "輸出應包含 participant 宣告");
-                // assertTrue(output.contains("User"), "輸出應包含 User actor");
-                // assertTrue(output.contains("MyClass"), "輸出應包含 MyClass 類別");
-                // assertTrue(output.contains("createList"), "輸出應包含 createList 方法");
-                // assertTrue(output.contains("->>"), "輸出應包含表示流程的箭頭 '->>'");
         }
 
         boolean deleteDirectory(File directoryToBeDeleted) {
@@ -116,11 +88,5 @@ public class MermaidGeneratorTest {
                         }
                 }
                 return directoryToBeDeleted.delete();
-        }
-
-        private static Set<String> parseCsv(String csv) {
-                if (StringUtils.isBlank(csv))
-                        return Collections.emptySet();
-                return Arrays.stream(csv.split(",")).map(String::trim).collect(Collectors.toSet());
         }
 }

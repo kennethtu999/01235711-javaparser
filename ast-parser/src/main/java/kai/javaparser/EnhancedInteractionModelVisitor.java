@@ -26,6 +26,8 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment; // <-- 新增此導入
 import org.eclipse.jdt.core.dom.WhileStatement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import kai.javaparser.model.ControlFlowFragment;
 import kai.javaparser.model.InteractionModel;
@@ -42,6 +44,8 @@ import kai.javaparser.model.SequenceDiagramData;
  * 
  */
 public class EnhancedInteractionModelVisitor extends ASTVisitor {
+    private static final Logger logger = LoggerFactory.getLogger(EnhancedInteractionModelVisitor.class);
+
     private final SequenceDiagramData sequenceData;
     private final CompilationUnit compilationUnit;
     private final Stack<InteractionModel> interactionStack = new Stack<>();
@@ -379,6 +383,8 @@ public class EnhancedInteractionModelVisitor extends ASTVisitor {
     }
 
     private InteractionModel createInteractionModel(MethodInvocation node) {
+        logger.debug("createInteractionModel: {}", node.toString());
+
         InteractionModel interaction = new InteractionModel();
         interaction.setSequenceId(String.valueOf(sequenceCounter++));
         interaction.setMethodName(node.getName().getIdentifier());

@@ -39,4 +39,11 @@ public class AstClassUtil {
         }
         return fqn.substring(classFqn.length() + 1);
     }
+
+    /**
+     * 產生 Mermaid 安全 ID（以 simple class name 為基礎）
+     */
+    public static String safeMermaidId(String classFqn) {
+        return classFqn.replace(".", "_").replaceAll("[()<>]", "").replace(",", "__");
+    }
 }

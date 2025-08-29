@@ -13,8 +13,10 @@ dependencies {
     // Jackson for JSON serialization
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2' // Use a recent version
 
-    // Logging (optional but recommended)
-    implementation 'org.slf4j:slf4j-simple:2.0.17' // Simple logger for console output
+    // Logging with logback-classic as SLF4J backend
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'org.slf4j:jul-to-slf4j:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.14'
 
     implementation 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'

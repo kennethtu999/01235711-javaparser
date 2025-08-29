@@ -1,4 +1,4 @@
-package kai.javaparser.project;
+package kai.javaparser.case9;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -35,7 +35,6 @@ public class AstParserLauncherPrjTest {
         // @TempDir handles cleanup for output. test-project is a persistent subproject.
     }
 
-    @Disabled
     @Test
     void testParseFolder() {
         try {

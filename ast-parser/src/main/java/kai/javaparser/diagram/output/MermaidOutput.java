@@ -7,6 +7,7 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
+import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.diagram.output.item.AbstractMermaidItem;
 import kai.javaparser.diagram.output.item.AltFragment;
 import kai.javaparser.diagram.output.item.EndFragment;
@@ -14,7 +15,6 @@ import kai.javaparser.diagram.output.item.LoopFragment;
 import kai.javaparser.diagram.output.item.MermailActivate;
 import kai.javaparser.diagram.output.item.MermailActor;
 import kai.javaparser.diagram.output.item.MermailCall;
-import kai.javaparser.diagram.output.item.MermailCallback;
 import kai.javaparser.diagram.output.item.MermailParticipant;
 import kai.javaparser.diagram.output.item.OptFragment;
 
@@ -63,21 +63,22 @@ public class MermaidOutput {
      * 添加從 Actor 到方法的進入點呼叫。
      */
     public void addEntryPointCall(String actorName, String calleeId, String calleeDisplayName) {
-        addParticipant(calleeId, calleeDisplayName);
+        addParticipant(calleeId, AstClassUtil.getSimpleClassName(calleeId));
         mermaidList.add(new MermailCall(actorName, calleeId, calleeDisplayName, null));
     }
 
     /**
      * 添加方法呼叫箭頭。
      */
-    public void addCall(String callerId, String calleeId, String signature, List<String> arguments,
+    public void addCall(String callerId, String calleeId, String signature,
+            List<String> arguments,
             String assignedToVariable) {
-        mermaidList.add(new MermailCall(callerId, calleeId, signature, arguments));
+
+        String finalSignature = signature;
         if (StringUtils.isNotEmpty(assignedToVariable)) {
-            activate(calleeId);
-            mermaidList.add(new MermailCallback(calleeId, callerId, assignedToVariable));
-            deactivate(calleeId);
+            finalSignature = assignedToVariable + " : " + finalSignature;
         }
+        mermaidList.add(new MermailCall(callerId, calleeId, finalSignature, arguments));
     }
 
     public void activate(String participantId) {
@@ -147,6 +148,7 @@ public class MermaidOutput {
 
         // 再輸出其他項目（calls, activates, deactivates, control flow fragments）
         int indentLevel = 0;
+        otherItems = fixDiagram(otherItems);
         for (AbstractMermaidItem item : otherItems) {
             result.append(item.toDiagramString(indentLevel)).append("\n");
             // System.out.println(indentLevel + " " + item.getClass().getSimpleName());
@@ -163,5 +165,26 @@ public class MermaidOutput {
         }
 
         return result.toString();
+    }
+
+    /**
+     * 修復 diagram
+     * 
+     * @param otherItems
+     * @return
+     */
+    public List<AbstractMermaidItem> fixDiagram(List<AbstractMermaidItem> otherItems) {
+        List<AbstractMermaidItem> result = new ArrayList<>();
+
+        // if line x = opt & line x+1 = end then ignore
+        for (int i = 0; i < otherItems.size() - 1; i++) {
+            if (otherItems.get(i) instanceof OptFragment && otherItems.get(i + 1) instanceof EndFragment) {
+                i = i + 1;
+            } else {
+                result.add(otherItems.get(i));
+            }
+        }
+
+        return result;
     }
 }

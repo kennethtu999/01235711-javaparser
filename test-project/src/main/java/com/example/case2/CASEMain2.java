@@ -27,11 +27,10 @@ public class CASEMain2 {
             }
 
             if (i == 0) {
-                logger.info("------------------------台外幣都無可供查詢帳號-----------------------------");
-                throwActionException(ICASECode.b2C_NO_QUERY_FROM_ACCOUNT); // 導到錯誤頁去
+                logger.info("--------TW FR 都無可供查詢帳號------------");
+                throwActionException(ICASECode.b2C_NO_QUERY_FROM_ACCOUNT);
             } else {
-                logger.info("-------------------------台或外幣的可查詢帳號---------------------------");
-                // 在build grid method 中再處理查詢權限
+                logger.info("--------TW FR 的可查詢帳號------------");
                 viewForm.setQueryTime(CASEUtils.getDisplayDateTime(new java.util.Date())); //
 
                 viewForm.setComboCompany(buildCompanyCombo(getLoginUser(),
