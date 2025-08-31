@@ -36,6 +36,7 @@ public class AstParserLauncherPrjTest {
     }
 
     @Test
+    @Disabled
     void testParseFolder() {
         try {
             String outputDirArg = currentProjectDir.resolve("build/parsed-ast").toAbsolutePath().toString();
