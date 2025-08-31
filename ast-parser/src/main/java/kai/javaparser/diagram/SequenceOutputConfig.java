@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class SequenceDiagramOutputConfig {
+public class SequenceOutputConfig {
     /** 追蹤深度 */
     @Builder.Default
     private int depth = 1;

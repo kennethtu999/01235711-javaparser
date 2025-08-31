@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 // import static org.junit.jOupiter.api.Assertions.assertTrue;
 
 import kai.javaparser.AstParserLauncher;
-import kai.javaparser.diagram.SequenceDiagramGenerator;
-import kai.javaparser.diagram.SequenceDiagramOutputConfig;
+import kai.javaparser.diagram.SequenceOutputGenerator;
+import kai.javaparser.diagram.SequenceOutputConfig;
 
 public class MermaidGeneratorTest {
 
@@ -56,7 +56,7 @@ public class MermaidGeneratorTest {
                 Path resourcePath = Paths.get("build/parsed-ast");
                 String methodSignature = "com.example.case2.LoginUser.getFXQueryAcntList()";
 
-                SequenceDiagramOutputConfig config = SequenceDiagramOutputConfig.builder()
+                SequenceOutputConfig config = SequenceOutputConfig.builder()
                                 .depth(2)
                                 .hideDetailsInConditionals(false)
                                 .hideDetailsInChainExpression(false)
@@ -64,7 +64,7 @@ public class MermaidGeneratorTest {
                                 .build();
 
                 // Act: 執行 MermaidGenerator 的 main 方法
-                SequenceDiagramGenerator generator = SequenceDiagramGenerator.builder()
+                SequenceOutputGenerator generator = SequenceOutputGenerator.builder()
                                 .astDir(resourcePath.toAbsolutePath().toString())
                                 .config(config)
                                 .build();
