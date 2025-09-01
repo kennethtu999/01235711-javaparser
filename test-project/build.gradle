@@ -3,10 +3,14 @@
 // It might have its own dependencies (e.g., Spring Boot, JPA, etc.)
 // For a simple example, it might not need extra dependencies.
 
+plugins {
+    id 'java'
+}
+
 dependencies {
     // Example: If your test-project uses Spring Boot, add its dependencies here.
-    // implementation 'org.springframework.boot:spring-boot-starter:3.1.5'
-    // implementation 'org.springframework.data:spring-data-jpa:3.1.5'
+    // implementation 'org.springframework.boot:spring-boot-starter:3.5.5'
+    // implementation 'org.springframework.data:spring-data-jpa:3.5.5'
     // ... any other dependencies that your test Java code might have
 }
 

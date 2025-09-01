@@ -1,59 +1,87 @@
 // ast-parser/build.gradle
 plugins {
     id 'application' // Only this project needs to be runnable
+    id 'org.springframework.boot' version '3.5.5'
+    id 'io.spring.dependency-management' version '1.1.4'
+    id 'java'
+}
+
+// Java 17 is required for Spring Boot 3
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+configurations {
+    gradleApi.extendsFrom implementation
 }
 
 dependencies {
+    // Spring Boot Starter Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    
     // Apache Commons Lang for String manipulation
-    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation 'org.apache.commons:commons-lang3:3.15.0'
 
     // Eclipse JDT Core for AST parsing
-    implementation 'org.eclipse.jdt:org.eclipse.jdt.core:3.42.0' // Use a recent version, check Maven Central
+    implementation 'org.eclipse.jdt:org.eclipse.jdt.core:3.42.0'
 
-    // Jackson for JSON serialization
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2' // Use a recent version
+    // Jackson for JSON serialization (Spring Boot 3 manages this version)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
 
-    // Logging with logback-classic as SLF4J backend
-    implementation 'org.slf4j:slf4j-api:2.0.9'
-    implementation 'org.slf4j:jul-to-slf4j:2.0.9'
-    implementation 'ch.qos.logback:logback-classic:1.4.14'
+    // Logging with logback-classic as SLF4J backend (Spring Boot 3 manages this version)
+    implementation 'org.slf4j:slf4j-api'
+    implementation 'org.slf4j:jul-to-slf4j'
+    implementation 'ch.qos.logback:logback-classic'
 
-    implementation 'org.projectlombok:lombok:1.18.36'
+    // Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
     
-    testImplementation 'org.projectlombok:lombok:1.18.36'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.36'
-
     // Gradle Tooling API for testing
-    implementation gradleApi()  // Uses the current Gradle version
+    implementation gradleApi()
+
+    // Test dependencies
+    testCompileOnly 'org.projectlombok:lombok:1.18.36'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.36'
+    
+    // Spring Boot Starter Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+// Exclude conflicting logging dependencies from Gradle API
+configurations.all {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+    exclude group: 'ch.qos.logback', module: 'logback-classic'
 }
 
 application {
-    mainClass = 'kai.javaparser.AstParserApp'
+    mainClass = 'kai.javaparser.AstParserSpringBootApp'
 }
 
 tasks.jar {
-    // === START OF MODIFICATION ===
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // <-- Add this line to handle duplicates
-
-    // Optional: You can also explicitly exclude specific files that commonly cause conflicts
-    // from {
-    //     configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    // } {
-    //     exclude 'META-INF/*.DSA' // Java signature files
-    //     exclude 'META-INF/*.SF'  // Java signature files
-    //     exclude 'META-INF/*.RSA' // Java signature files
-    //     exclude 'META-INF/LICENSE' // Already handled by duplicatesStrategy, but can be explicit
-    //     exclude 'META-INF/NOTICE'
-    //     // If you have other specific files causing issues, add them here
-    // }
-    // === END OF MODIFICATION ===
-
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    zip64 = true
 
     manifest {
-        attributes 'Main-Class': 'kai.javaparser.AstParserApp'
+        attributes 'Main-Class': 'kai.javaparser.AstParserSpringBootApp'
     }
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
+    
+    // Configure test logging
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat = 'full'
+    }
+}
+
+// Configure Spring Boot
+springBoot {
+    buildInfo()
 }

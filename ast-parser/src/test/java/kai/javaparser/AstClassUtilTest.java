@@ -6,9 +6,11 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import kai.javaparser.diagram.AstClassUtil;
 
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 public class AstClassUtilTest {
 
     @Test

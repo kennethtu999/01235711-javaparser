@@ -1,7 +1,3 @@
-// common build.gradle for multi-project setup
-// This file can define common configurations, dependencies, or tasks for subprojects.
-
-// Define common plugin versions or configurations here if needed
 plugins {
     // No plugins applied to the root project itself, typically
 }
@@ -20,13 +16,23 @@ subprojects {
     group = 'kai.javaparser' // Common group for all subprojects
     version = '1.0-SNAPSHOT' // Common version for all subprojects
 
-    dependencies {
-        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
-        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
-        testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
+    // Java 17 is required for Spring Boot 3
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    test {
+    dependencies {
+        // Common dependencies for all subprojects
+    }
+    
+    // Common test configuration
+    tasks.withType(Test) {
         useJUnitPlatform()
+        
+        testLogging {
+            events "passed", "skipped", "failed"
+            exceptionFormat = 'full'
+        }
     }
 }
