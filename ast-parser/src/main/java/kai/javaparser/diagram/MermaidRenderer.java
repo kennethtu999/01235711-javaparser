@@ -23,7 +23,9 @@ public class MermaidRenderer {
         // 1. 設定進入點
         output.addActor("User");
         String entryClassFqn = AstClassUtil.getClassFqnFromMethodFqn(traceResult.getEntryPointMethodFqn());
-        String methodSignature = AstClassUtil.getMethodSignature(traceResult.getEntryPointMethodFqn());
+        String methodSignature = AstClassUtil.getMethodSignature(traceResult.getEntryPointMethodFqn()).replaceAll(
+                "\\(.*",
+                "");
         String entryClassId = AstClassUtil.safeMermaidId(entryClassFqn);
 
         output.addEntryPointCall("User", entryClassId, methodSignature);

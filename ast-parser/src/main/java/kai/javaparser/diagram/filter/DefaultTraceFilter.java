@@ -34,18 +34,14 @@ public class DefaultTraceFilter implements TraceFilter {
     public boolean shouldExclude(String classFqn, String simpleMethodName, AstIndex astIndex) {
         logger.info("INFO: 檢查是否排除方法: {} {}", classFqn, simpleMethodName);
 
-        if (StringUtils.isEmpty(classFqn) || StringUtils.isEmpty(simpleMethodName)) {
-            return true;
-        }
-
         // 規則 1: 檢查是否符合被排除的類別前綴
-        if (excludedClassPrefixes.stream().anyMatch(classFqn::startsWith)) {
+        if (classFqn != null && excludedClassPrefixes.stream().anyMatch(classFqn::startsWith)) {
             logger.info("INFO: 已跳過追蹤符合排除前綴的類別: {}", classFqn);
             return true;
         }
 
         // 規則 2: 檢查是否為被排除的特定方法名稱
-        if (excludedMethodNames.contains(simpleMethodName)) {
+        if (simpleMethodName != null && excludedMethodNames.contains(simpleMethodName)) {
             logger.info("INFO: 已跳過追蹤被排除的方法名稱: {}", simpleMethodName);
             return true;
         }
@@ -61,7 +57,9 @@ public class DefaultTraceFilter implements TraceFilter {
 
     @Override
     public boolean shouldExclude(String methodFqn, AstIndex astIndex) {
-        return shouldExclude(AstClassUtil.getClassFqnFromMethodFqn(methodFqn),
-                AstClassUtil.getSimpleClassName(methodFqn), astIndex);
+        String classFqn = AstClassUtil.getClassFqnFromMethodFqn(methodFqn);
+        String methodSignature = AstClassUtil.getMethodSignature(methodFqn);
+        String simpleMethodName = methodSignature.split("\\(")[0];
+        return shouldExclude(classFqn, simpleMethodName, astIndex);
     }
 }

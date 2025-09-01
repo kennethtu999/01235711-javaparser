@@ -48,6 +48,15 @@ public class LoginUser {
         return accountItemList;
     }
 
+    public void getFXQueryAcntList2(Company company) {
+        List<AccountItem> authzAcntList = getAuthzAcntList();
+        for (AccountItem accountItem : authzAcntList) {
+            if (accountItem.getIsRelated().intValue() == AAConstants.YES) {
+                logger.info("==== add 母子公司log accountList的A/C LIST:" + accountItem);
+            }
+        }
+    }
+
     private List<AccountItem> getAuthzAcntList() {
         throw new UnsupportedOperationException("Unimplemented method 'getAuthzAcntList'");
     }

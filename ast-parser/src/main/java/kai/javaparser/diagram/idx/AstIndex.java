@@ -12,7 +12,6 @@ import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.model.FileAstData;
 import kai.javaparser.util.Util;
 
