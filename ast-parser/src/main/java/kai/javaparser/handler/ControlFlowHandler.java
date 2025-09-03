@@ -12,6 +12,11 @@ import kai.javaparser.model.ControlFlowFragment;
 
 /**
  * ControlFlowHandler 專門處理 if, for, while 等控制流邏輯
+ * 
+ * 重新設計原則：
+ * 1. 移除複雜的 stack 邏輯
+ * 2. 專注於建立清晰的資料結構
+ * 3. 讓追蹤邏輯和渲染邏輯分離
  */
 public class ControlFlowHandler {
     private static final Logger logger = LoggerFactory.getLogger(ControlFlowHandler.class);
@@ -30,6 +35,7 @@ public class ControlFlowHandler {
             fragment.setContextPath(context.getCurrentMethodGroup().getFullMethodName());
         }
 
+        // 簡化邏輯：直接添加到當前方法組或控制流程片段
         if (context.getCurrentControlFlowFragment() != null) {
             context.getCurrentControlFlowFragment().addAlternative(fragment);
         } else if (context.getCurrentMethodGroup() != null) {
@@ -39,27 +45,26 @@ public class ControlFlowHandler {
             context.getSequenceData().getAllControlFlowFragments().add(fragment);
         }
 
-        context.getControlFlowStack().push(fragment);
+        // 設置當前控制流程片段，但不使用複雜的 stack
         context.setCurrentControlFlowFragment(fragment);
+
+        // 設置條件表達式節點，以便後續追蹤
+        context.setCurrentConditionExpression(node.getExpression());
+
         return true;
     }
 
     public void endVisit(IfStatement node, HandlerContext context) {
-        if (!context.getControlFlowStack().isEmpty()) {
-            ControlFlowFragment fragment = context.getControlFlowStack().pop();
+        ControlFlowFragment fragment = context.getCurrentControlFlowFragment();
+        if (fragment != null) {
             fragment.setEndLineNumber(
                     context.getCompilationUnit().getLineNumber(node.getStartPosition() + node.getLength()));
 
-            // Note: The 'else' part is typically handled as a separate 'alternative'
-            // fragment, but your current structure adds it *into* the 'if' fragment's
-            // alternatives.
-            // This is a design choice. The code below keeps your current design.
-            if (fragment.getType() == ControlFlowFragment.ControlFlowType.ALTERNATIVE &&
-                    node.getElseStatement() != null) {
-                // Add else alternative
+            // 處理 else 部分
+            if (node.getElseStatement() != null) {
                 ControlFlowFragment elseFragment = new ControlFlowFragment();
                 elseFragment.setSequenceId(String.valueOf(context.getAndIncrementSequenceCounter()));
-                elseFragment.setType(ControlFlowFragment.ControlFlowType.OPTIONAL); // Or another type for 'else'
+                elseFragment.setType(ControlFlowFragment.ControlFlowType.OPTIONAL);
                 elseFragment.setCondition("[else]");
                 elseFragment.setStartLineNumber(
                         context.getCompilationUnit().getLineNumber(node.getElseStatement().getStartPosition()));
@@ -76,8 +81,10 @@ public class ControlFlowHandler {
                 fragment.addAlternative(elseFragment);
             }
         }
-        context.setCurrentControlFlowFragment(
-                context.getControlFlowStack().isEmpty() ? null : context.getControlFlowStack().peek());
+
+        // 簡化：重置當前控制流程片段和條件表達式
+        context.setCurrentControlFlowFragment(null);
+        context.setCurrentConditionExpression(null);
     }
 
     public boolean visit(ForStatement node, HandlerContext context) {
@@ -103,6 +110,7 @@ public class ControlFlowHandler {
             fragment.setContextPath(context.getCurrentMethodGroup().getFullMethodName());
         }
 
+        // 簡化邏輯：直接添加到當前方法組或控制流程片段
         if (context.getCurrentControlFlowFragment() != null) {
             context.getCurrentControlFlowFragment().addAlternative(fragment);
         } else if (context.getCurrentMethodGroup() != null) {
@@ -111,7 +119,7 @@ public class ControlFlowHandler {
             context.getSequenceData().getAllControlFlowFragments().add(fragment);
         }
 
-        context.getControlFlowStack().push(fragment);
+        // 設置當前控制流程片段
         context.setCurrentControlFlowFragment(fragment);
         return true;
     }
@@ -125,14 +133,14 @@ public class ControlFlowHandler {
     }
 
     public void endVisit(WhileStatement node, HandlerContext context) {
-        if (!context.getControlFlowStack().isEmpty()) {
-            // Fix: Set endLineNumber for WhileStatement
-            ControlFlowFragment fragment = context.getControlFlowStack().pop();
+        ControlFlowFragment fragment = context.getCurrentControlFlowFragment();
+        if (fragment != null) {
             fragment.setEndLineNumber(
                     context.getCompilationUnit().getLineNumber(node.getStartPosition() + node.getLength()));
         }
-        context.setCurrentControlFlowFragment(
-                context.getControlFlowStack().isEmpty() ? null : context.getControlFlowStack().peek());
+
+        // 簡化：重置當前控制流程片段
+        context.setCurrentControlFlowFragment(null);
     }
 
     // 抽出共用的邏輯到一個輔助方法
@@ -150,29 +158,29 @@ public class ControlFlowHandler {
             fragment.setContextPath(context.getCurrentMethodGroup().getFullMethodName());
         }
 
+        // 簡化邏輯：直接添加到當前方法組或控制流程片段
         if (context.getCurrentControlFlowFragment() != null) {
-            context.getCurrentControlFlowFragment().addAlternative(fragment); // Adding a loop as an alternative to its
-                                                                              // parent
-            // fragment (e.g., if inside an if)
+            context.getCurrentControlFlowFragment().addAlternative(fragment);
         } else if (context.getCurrentMethodGroup() != null) {
-            context.getCurrentMethodGroup().addControlFlowFragment(fragment); // Adding a top-level loop to the method
+            context.getCurrentMethodGroup().addControlFlowFragment(fragment);
         } else {
-            context.getSequenceData().getAllControlFlowFragments().add(fragment); // Fallback: add to global list
+            context.getSequenceData().getAllControlFlowFragments().add(fragment);
         }
 
-        context.getControlFlowStack().push(fragment);
+        // 設置當前控制流程片段
         context.setCurrentControlFlowFragment(fragment);
         return true;
     }
 
     // 抽出共用的邏輯到一個輔助方法
     private void endVisitLoopFragment(ASTNode node, HandlerContext context) {
-        if (!context.getControlFlowStack().isEmpty()) {
-            ControlFlowFragment fragment = context.getControlFlowStack().pop();
+        ControlFlowFragment fragment = context.getCurrentControlFlowFragment();
+        if (fragment != null) {
             fragment.setEndLineNumber(
                     context.getCompilationUnit().getLineNumber(node.getStartPosition() + node.getLength()));
         }
-        context.setCurrentControlFlowFragment(
-                context.getControlFlowStack().isEmpty() ? null : context.getControlFlowStack().peek());
+
+        // 簡化：重置當前控制流程片段
+        context.setCurrentControlFlowFragment(null);
     }
 }

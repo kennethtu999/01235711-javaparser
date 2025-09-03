@@ -64,17 +64,17 @@ public class MermaidGeneratorTest {
   @Test
   void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
     Path resourcePath = Paths.get("build/parsed-ast");
-    String methodSignature = "com.example.case2.LoginUser.getFXQueryAcntList2()";
+    String methodSignature = "com.example.case2.LoginUser.getLevel1()";
     String basePackage = "com.example";
 
-    Set<String> exclusionClassSet = new HashSet<>(Arrays.asList());
+    Set<String> exclusionClassSet = new HashSet<>(Arrays.asList("java.lang"));
 
     Set<String> exclusionMethodSet = new HashSet<>(Arrays.asList());
 
     TraceFilter filter = new DefaultTraceFilter(exclusionClassSet, exclusionMethodSet);
 
     SequenceOutputConfig config = SequenceOutputConfig.builder()
-        .depth(2)
+        .depth(4)
         .hideDetailsInConditionals(false)
         .hideDetailsInChainExpression(false)
         .basePackage(basePackage)
@@ -93,102 +93,41 @@ public class MermaidGeneratorTest {
     // System.err.println("--- Captured MermaidGenerator Output ---\n" + output);
     Files.writeString(new File("build/diagram.mermaid").toPath(), output);
 
-    logger.info("output: " + output);
+    System.out.println("output: " + output);
     Assertions.assertEquals(
         """
-            sequenceDiagram
+                        sequenceDiagram
             actor User
             participant com_example_case2_LoginUser as com_example_case2_LoginUser
-            participant com_example_case2_AccountItem as com.example.case2.AccountItem
-            participant java_lang_Integer as java.lang.Integer
             participant java_util_logging_Logger as java.util.logging.Logger
-            User->>com_example_case2_LoginUser: getFXQueryAcntList2()
+            participant java_util_ArrayListcom_example_case2_AccountItem as java.util.ArrayList<com.example.case2.AccountItem>
+            participant com_example_case2_AccountItem as com.example.case2.AccountItem
+            User->>com_example_case2_LoginUser: getLevel1()
             activate com_example_case2_LoginUser
-              com_example_case2_LoginUser->>com_example_case2_LoginUser: authzAcntList : getAuthzAcntList()
+              com_example_case2_LoginUser->>com_example_case2_LoginUser: authzAcntList : getLevel2()
               activate com_example_case2_LoginUser
+                alt x >= 0
+                  com_example_case2_LoginUser->>java_util_logging_Logger: info("==== x >=0, current value:" + x)
+                end
+                com_example_case2_LoginUser->>com_example_case2_LoginUser: getLevel3()
+                activate com_example_case2_LoginUser
+                  alt x >= 0
+                    com_example_case2_LoginUser->>java_util_logging_Logger: info("==== x >=0, current value:" + x)
+                  end
+                  com_example_case2_LoginUser->>java_util_ArrayListcom_example_case2_AccountItem: java.util.ArrayList<com.example.case2.AccountItem>()
+                deactivate com_example_case2_LoginUser
               deactivate com_example_case2_LoginUser
               loop accountItem : authzAcntList
                 alt accountItem.getIsRelated().intValue() == AAConstants.YES
-                  activate com_example_case2_LoginUser
-                    com_example_case2_LoginUser->>com_example_case2_AccountItem: java.lang.Integer : getIsRelated()
-                    activate com_example_case2_AccountItem
-                      com_example_case2_AccountItem->>java_lang_Integer: int : intValue()
-                    deactivate com_example_case2_AccountItem
-                  deactivate com_example_case2_LoginUser
-                  activate com_example_case2_LoginUser
-                    com_example_case2_LoginUser->>java_util_logging_Logger: void : info("==== add 母子公司log accountList的A/C LIST:" + accountItem)
-                  deactivate com_example_case2_LoginUser
+                  com_example_case2_LoginUser-->>com_example_case2_AccountItem: getIsRelated()
+                  com_example_case2_LoginUser->>java_util_logging_Logger: info("==== add 母子公司log accountList的A/C LIST:" + accountItem)
                 end
-              end"""
+              end
+            deactivate com_example_case2_LoginUser
+                        """
             .replaceAll("\\s+", " ").trim(),
         output.replaceAll("\\s+", " ").trim());
   }
-
-  // /**
-  // * 依照指定的Method，生成對應的Sequence Diagram
-  // *
-  // * @throws IOException
-  // * @throws URISyntaxException
-  // */
-  // @Test
-  // void testGenerateMermaidForCreateList2() throws IOException,
-  // URISyntaxException {
-  // Path resourcePath = Paths.get("build/parsed-ast");
-  // String methodSignature = "com.example.case2.LoginUser.getFXQueryAcntList2()";
-  // String basePackage = "com.example";
-
-  // Set<String> exclusionClassSet = new HashSet<>(Arrays.asList("java.lang"));
-
-  // Set<String> exclusionMethodSet = new HashSet<>(Arrays.asList());
-
-  // TraceFilter filter = new DefaultTraceFilter(exclusionClassSet,
-  // exclusionMethodSet);
-
-  // SequenceOutputConfig config = SequenceOutputConfig.builder()
-  // .depth(2)
-  // .hideDetailsInConditionals(false)
-  // .hideDetailsInChainExpression(false)
-  // .basePackage(basePackage)
-  // .filter(filter)
-  // .build();
-
-  // // Act: 執行 MermaidGenerator 的 main 方法
-  // SequenceOutputGenerator generator = SequenceOutputGenerator.builder()
-  // .astDir(resourcePath.toAbsolutePath().toString())
-  // .config(config)
-
-  // .build();
-  // String output = generator.generate(methodSignature);
-
-  // // 為了方便除錯，可以在測試執行時將捕獲的內容印到標準錯誤流
-  // // System.err.println("--- Captured MermaidGenerator Output ---\n" + output);
-  // Files.writeString(new File("build/diagram.mermaid").toPath(), output);
-
-  // logger.info("output: " + output);
-  // Assertions.assertEquals(
-  // """
-  // sequenceDiagram
-  // actor User
-  // participant com_example_case2_LoginUser as com_example_case2_LoginUser
-  // participant java_util_logging_Logger as java.util.logging.Logger
-  // User->>com_example_case2_LoginUser: getFXQueryAcntList2()
-  // activate com_example_case2_LoginUser
-  // com_example_case2_LoginUser->>com_example_case2_LoginUser: authzAcntList :
-  // getAuthzAcntList()
-  // activate com_example_case2_LoginUser
-  // deactivate com_example_case2_LoginUser
-  // loop accountItem : authzAcntList
-  // alt accountItem.getIsRelated().intValue() == AAConstants.YES
-  // activate com_example_case2_LoginUser
-  // com_example_case2_LoginUser->>java_util_logging_Logger: void : info("==== add
-  // 母子公司log accountList的A/C LIST:" + accountItem)
-  // deactivate com_example_case2_LoginUser
-  // end
-  // end
-  // """
-  // .replaceAll("\\s+", " ").trim(),
-  // output.replaceAll("\\s+", " ").trim());
-  // }
 
   boolean deleteDirectory(File directoryToBeDeleted) {
     if (!Files.exists(directoryToBeDeleted.toPath())) {

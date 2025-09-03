@@ -10,6 +10,8 @@ import org.apache.commons.lang3.StringUtils;
 import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.diagram.output.item.AbstractMermaidItem;
 import kai.javaparser.diagram.output.item.AltFragment;
+import kai.javaparser.diagram.output.item.ElseFragment;
+import kai.javaparser.diagram.output.item.ElseIfFragment;
 import kai.javaparser.diagram.output.item.EndFragment;
 import kai.javaparser.diagram.output.item.LoopFragment;
 import kai.javaparser.diagram.output.item.MermailActivate;
@@ -64,7 +66,7 @@ public class MermaidOutput {
      */
     public void addEntryPointCall(String actorName, String calleeId, String calleeDisplayName) {
         addParticipant(calleeId, AstClassUtil.getSimpleClassName(calleeId));
-        mermaidList.add(new MermailCall(actorName, calleeId, calleeDisplayName, null));
+        mermaidList.add(new MermailCall(actorName, calleeId, calleeDisplayName, null, false, null));
     }
 
     /**
@@ -72,13 +74,22 @@ public class MermaidOutput {
      */
     public void addCall(String callerId, String calleeId, String signature,
             List<String> arguments,
-            String assignedToVariable) {
+            String assignedToVariable, boolean dashLine) {
+        addCall(callerId, calleeId, signature, arguments, assignedToVariable, dashLine, null);
+    }
+
+    /**
+     * 添加方法呼叫箭頭（包含回傳值）。
+     */
+    public void addCall(String callerId, String calleeId, String signature,
+            List<String> arguments,
+            String assignedToVariable, boolean dashLine, String returnValue) {
 
         String finalSignature = signature;
         if (StringUtils.isNotEmpty(assignedToVariable)) {
             finalSignature = assignedToVariable + " : " + finalSignature;
         }
-        mermaidList.add(new MermailCall(callerId, calleeId, finalSignature, arguments));
+        mermaidList.add(new MermailCall(callerId, calleeId, finalSignature, arguments, dashLine, returnValue));
     }
 
     public void activate(String participantId) {
@@ -94,6 +105,20 @@ public class MermaidOutput {
      */
     public void addAltFragment(String condition) {
         mermaidList.add(new AltFragment(condition));
+    }
+
+    /**
+     * 添加 else 片段
+     */
+    public void addElseFragment() {
+        mermaidList.add(new ElseFragment(""));
+    }
+
+    /**
+     * 添加 else if 片段
+     */
+    public void addElseIfFragment(String condition) {
+        mermaidList.add(new ElseIfFragment(condition));
     }
 
     /**
@@ -159,6 +184,9 @@ public class MermaidOutput {
                 indentLevel -= 1;
             } else if (item instanceof AltFragment || item instanceof OptFragment || item instanceof LoopFragment) {
                 indentLevel += 1;
+            } else if (item instanceof ElseFragment || item instanceof ElseIfFragment) {
+                // Else and ElseIf fragments should not increase indent level, as they are part
+                // of the same block
             } else if (item instanceof EndFragment) {
                 indentLevel -= 1;
             }
@@ -177,7 +205,7 @@ public class MermaidOutput {
         List<AbstractMermaidItem> result = new ArrayList<>();
 
         // if line x = opt & line x+1 = end then ignore
-        for (int i = 0; i < otherItems.size() - 1; i++) {
+        for (int i = 0; i < otherItems.size(); i++) {
             if (otherItems.get(i) instanceof OptFragment && otherItems.get(i + 1) instanceof EndFragment) {
                 i = i + 1;
             } else {

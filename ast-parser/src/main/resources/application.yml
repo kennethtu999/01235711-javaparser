@@ -1,0 +1,10 @@
+server:
+  port: 8080
+spring:
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  application:
+    name: ast-parser
+    description: Java AST Parser with Spring Boot 3

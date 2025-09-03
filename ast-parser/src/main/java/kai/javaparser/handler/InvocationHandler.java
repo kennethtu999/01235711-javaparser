@@ -7,6 +7,7 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -18,6 +19,12 @@ import kai.javaparser.model.InteractionModel;
 /**
  * InvocationHandler 專門處理 MethodInvocation, ConstructorInvocation,
  * ClassInstanceCreation 等方法呼叫
+ * 
+ * 重新設計原則：
+ * 1. 使用新的資料結構來處理鏈式呼叫 (chainedNextCall)
+ * 2. 移除複雜的 stack 邏輯
+ * 3. 專注於建立清晰的資料結構
+ * 4. 讓追蹤邏輯和渲染邏輯分離
  */
 public class InvocationHandler {
     private static final Logger logger = LoggerFactory.getLogger(InvocationHandler.class);
@@ -25,80 +32,133 @@ public class InvocationHandler {
     public boolean visit(MethodInvocation node, HandlerContext context) {
         InteractionModel interaction = createInteractionModel(node, context);
 
-        // Determine if this is a nested call (e.g., chained calls or argument
-        // evaluation)
-        if (!context.getInteractionStack().isEmpty()) {
-            // This interaction is a child of the current top of the stack
-            context.getInteractionStack().peek().addChild(interaction);
-        } else if (context.getCurrentControlFlowFragment() != null) {
-            // This is a top-level interaction within a control flow fragment
-            context.getCurrentControlFlowFragment().addInteraction(interaction);
-        } else if (context.getCurrentMethodGroup() != null) {
-            // This is a top-level interaction within a method group
-            context.getCurrentMethodGroup().addInteraction(interaction);
-        } else {
-            // Fallback: Add to global list if no other context
-            context.getSequenceData().getAllInteractions().add(interaction);
+        // 檢查當前節點是否在條件表達式中
+        boolean isInCondition = isNodeInConditionExpression(node, context);
+        boolean isInIfBody = isNodeInIfStatementBody(node, context);
+
+        logger.debug("MethodInvocation: {} - isInCondition: {}, isInIfBody: {}, currentInConditionEvaluation: {}",
+                node.getName().getIdentifier(), isInCondition, isInIfBody, context.isInConditionEvaluation());
+
+        if (isInCondition) {
+            context.setInConditionEvaluation(true);
+        } else if (isInIfBody) {
+            context.setInConditionEvaluation(false);
         }
 
-        context.getInteractionStack().push(interaction); // Push this interaction onto the stack for its children
+        // 檢查是否為鏈式呼叫的一部分
+        Expression expression = node.getExpression();
+        if (expression != null) {
+            InteractionModel parentInteraction = context.getNodeToInteractionMap().get(expression);
+            if (parentInteraction != null) {
+                // 這是鏈式呼叫的後續環節，將當前互動設定為父互動的 nextChainedCall
+                parentInteraction.setNextChainedCall(interaction);
+            } else {
+                // 如果找不到父互動，則將當前互動作為頂層互動處理
+                addInteractionToContext(interaction, context);
+            }
+        } else {
+            // 沒有 expression，通常意味著是 "this." 的隱式呼叫，視為頂層互動
+            addInteractionToContext(interaction, context);
+        }
+
+        // 將當前節點和互動模型儲存到 map 中，以便後續鏈式呼叫查找
+        context.getNodeToInteractionMap().put(node, interaction);
+
+        // 檢查是否被賦值給變數
+        ASTNode parent = node.getParent();
+        if (parent instanceof VariableDeclarationFragment) {
+            VariableDeclarationFragment fragment = (VariableDeclarationFragment) parent;
+            if (node.equals(fragment.getInitializer())) {
+                interaction.setAssignedToVariable(fragment.getName().getIdentifier());
+            }
+        }
+
         return true;
     }
 
     public void endVisit(MethodInvocation node, HandlerContext context) {
-        if (!context.getInteractionStack().isEmpty()) {
-            context.getInteractionStack().pop();
+        context.getNodeToInteractionMap().remove(node);
+
+        // 如果當前節點在條件表達式中，檢查是否需要重置條件評估狀態
+        if (context.isInConditionEvaluation()) {
+            ASTNode currentConditionExpression = context.getCurrentConditionExpression();
+            if (currentConditionExpression != null && node == currentConditionExpression) {
+                // 如果這是條件表達式本身，重置條件評估狀態
+                context.setInConditionEvaluation(false);
+            }
         }
     }
 
     public boolean visit(ConstructorInvocation node, HandlerContext context) {
         InteractionModel interaction = createConstructorInteractionModel(node, context);
 
-        if (!context.getInteractionStack().isEmpty()) {
-            context.getInteractionStack().peek().addChild(interaction);
-        } else if (context.getCurrentControlFlowFragment() != null) {
-            context.getCurrentControlFlowFragment().addInteraction(interaction);
-        } else if (context.getCurrentMethodGroup() != null) {
-            context.getCurrentMethodGroup().addInteraction(interaction);
-        } else {
-            context.getSequenceData().getAllInteractions().add(interaction);
+        // 由於 ConstructorInvocation 沒有 expression，它通常是獨立的建構，不直接作為鏈式呼叫的後續環節
+        // 因此直接添加到上下文中
+        addInteractionToContext(interaction, context);
+
+        // 將當前節點和互動模型儲存到 map 中，以便 ClassInstanceCreation 查找 (如果它作為一個鏈的一部分)
+        context.getNodeToInteractionMap().put(node, interaction);
+
+        // 檢查是否被賦值給變數
+        ASTNode parent = node.getParent();
+        if (parent instanceof VariableDeclarationFragment) {
+            VariableDeclarationFragment fragment = (VariableDeclarationFragment) parent;
+            if (node.equals(fragment.getInitializer())) {
+                interaction.setAssignedToVariable(fragment.getName().getIdentifier());
+            }
         }
 
-        context.getInteractionStack().push(interaction);
         return true;
     }
 
     public void endVisit(ConstructorInvocation node, HandlerContext context) {
-        if (!context.getInteractionStack().isEmpty()) {
-            context.getInteractionStack().pop();
-        }
+        context.getNodeToInteractionMap().remove(node);
     }
 
     public boolean visit(ClassInstanceCreation node, HandlerContext context) {
         InteractionModel interaction = createClassInstanceInteractionModel(node, context);
 
-        if (!context.getInteractionStack().isEmpty()) {
-            context.getInteractionStack().peek().addChild(interaction);
-        } else if (context.getCurrentControlFlowFragment() != null) {
-            context.getCurrentControlFlowFragment().addInteraction(interaction);
+        // 由於 ClassInstanceCreation 本身代表一個實例化，它的 expression 通常是 null 或 package.class 名稱
+        // 它會作為一個新的頂層互動，或者作為一個 MethodInvocation 的 expression
+        addInteractionToContext(interaction, context);
+
+        // 將當前節點和互動模型儲存到 map 中，以便後續鏈式呼叫查找
+        context.getNodeToInteractionMap().put(node, interaction);
+
+        // 檢查是否被賦值給變數
+        ASTNode parent = node.getParent();
+        if (parent instanceof VariableDeclarationFragment) {
+            VariableDeclarationFragment fragment = (VariableDeclarationFragment) parent;
+            if (node.equals(fragment.getInitializer())) {
+                interaction.setAssignedToVariable(fragment.getName().getIdentifier());
+            }
+        }
+
+        return true;
+    }
+
+    public void endVisit(ClassInstanceCreation node, HandlerContext context) {
+        context.getNodeToInteractionMap().remove(node);
+    }
+
+    /**
+     * 輔助方法：將 InteractionModel 添加到適當的上下文 (MethodGroup 或 ControlFlowFragment)
+     */
+    private void addInteractionToContext(InteractionModel interaction, HandlerContext context) {
+        if (context.getCurrentControlFlowFragment() != null) {
+            // 根據當前是否在條件評估階段來決定添加到哪個列表
+            if (context.isInConditionEvaluation()) {
+                context.getCurrentControlFlowFragment().addConditionInteraction(interaction);
+            } else {
+                context.getCurrentControlFlowFragment().addContentInteraction(interaction);
+            }
         } else if (context.getCurrentMethodGroup() != null) {
             context.getCurrentMethodGroup().addInteraction(interaction);
         } else {
             context.getSequenceData().getAllInteractions().add(interaction);
         }
-
-        context.getInteractionStack().push(interaction);
-        return true;
     }
 
-    public void endVisit(ClassInstanceCreation node, HandlerContext context) {
-        if (!context.getInteractionStack().isEmpty()) {
-            context.getInteractionStack().pop();
-        }
-    }
-
-    // 將 create...InteractionModel 相關的 private 方法也移到這裡
-    // 這些方法現在需要接收 HandlerContext 作為參數
     private InteractionModel createInteractionModel(MethodInvocation node, HandlerContext context) {
         logger.debug("createInteractionModel: {}", node.toString());
 
@@ -140,16 +200,6 @@ public class InvocationHandler {
             }
         }
 
-        // 判斷是否被賦值給變數
-        ASTNode parent = node.getParent();
-        if (parent instanceof VariableDeclarationFragment) {
-            VariableDeclarationFragment fragment = (VariableDeclarationFragment) parent;
-            // 檢查當前的 MethodInvocation 是否是 VariableDeclarationFragment 的初始化表達式
-            if (node.equals(fragment.getInitializer())) {
-                interaction.setAssignedToVariable(fragment.getName().getIdentifier());
-            }
-        }
-
         return interaction;
     }
 
@@ -179,16 +229,6 @@ public class InvocationHandler {
             }
         }
 
-        // 判斷是否被賦值給變數
-        ASTNode parent = node.getParent();
-        if (parent instanceof VariableDeclarationFragment) {
-            VariableDeclarationFragment fragment = (VariableDeclarationFragment) parent;
-            // 檢查當前的 ConstructorInvocation 是否是 VariableDeclarationFragment 的初始化表達式
-            if (node.equals(fragment.getInitializer())) {
-                interaction.setAssignedToVariable(fragment.getName().getIdentifier());
-            }
-        }
-
         return interaction;
     }
 
@@ -213,16 +253,6 @@ public class InvocationHandler {
             if (arg instanceof Expression) {
                 String argValue = arg.toString();
                 interaction.addArgument(argValue);
-            }
-        }
-
-        // 判斷是否被賦值給變數
-        ASTNode parent = node.getParent();
-        if (parent instanceof VariableDeclarationFragment) {
-            VariableDeclarationFragment fragment = (VariableDeclarationFragment) parent;
-            // 檢查當前的 ClassInstanceCreation 是否是 VariableDeclarationFragment 的初始化表達式
-            if (node.equals(fragment.getInitializer())) {
-                interaction.setAssignedToVariable(fragment.getName().getIdentifier());
             }
         }
 
@@ -297,5 +327,54 @@ public class InvocationHandler {
             }
         }
         return "void";
+    }
+
+    /**
+     * 檢查節點是否在條件表達式中
+     */
+    private boolean isNodeInConditionExpression(ASTNode node, HandlerContext context) {
+        ASTNode currentConditionExpression = context.getCurrentConditionExpression();
+        if (currentConditionExpression == null) {
+            return false;
+        }
+
+        // 檢查當前節點是否是條件表達式的子節點
+        return isDescendantOf(node, currentConditionExpression);
+    }
+
+    /**
+     * 檢查節點是否在 if 語句主體中（而不是在條件表達式中）
+     */
+    private boolean isNodeInIfStatementBody(ASTNode node, HandlerContext context) {
+        ASTNode currentConditionExpression = context.getCurrentConditionExpression();
+        if (currentConditionExpression == null) {
+            return false;
+        }
+
+        // 找到包含條件表達式的 IfStatement
+        ASTNode ifStatement = currentConditionExpression.getParent();
+        if (!(ifStatement instanceof IfStatement)) {
+            return false;
+        }
+
+        IfStatement ifStmt = (IfStatement) ifStatement;
+
+        // 檢查節點是否在 if 語句主體中
+        return isDescendantOf(node, ifStmt.getThenStatement()) ||
+                (ifStmt.getElseStatement() != null && isDescendantOf(node, ifStmt.getElseStatement()));
+    }
+
+    /**
+     * 檢查 node 是否是 ancestor 的後代節點
+     */
+    private boolean isDescendantOf(ASTNode node, ASTNode ancestor) {
+        ASTNode current = node.getParent();
+        while (current != null) {
+            if (current == ancestor) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 }

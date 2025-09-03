@@ -48,8 +48,8 @@ public class LoginUser {
         return accountItemList;
     }
 
-    public void getFXQueryAcntList2(Company company) {
-        List<AccountItem> authzAcntList = getAuthzAcntList();
+    public void getLevel1(Company company) {
+        List<AccountItem> authzAcntList = getLevel2();
         for (AccountItem accountItem : authzAcntList) {
             if (accountItem.getIsRelated().intValue() == AAConstants.YES) {
                 logger.info("==== add 母子公司log accountList的A/C LIST:" + accountItem);
@@ -57,8 +57,28 @@ public class LoginUser {
         }
     }
 
+    private List<AccountItem> getLevel2() {
+        int x = 0;
+        if (x >= 0) {
+            logger.info("==== x >=0, current value:" + x);
+        }
+        return getLevel3();
+    }
+
+    private List<AccountItem> getLevel3() {
+        int x = 0;
+        if (x >= 0) {
+            logger.info("==== x >=0, current value:" + x);
+        }
+        return new ArrayList<>();
+    }
+
     private List<AccountItem> getAuthzAcntList() {
-        throw new UnsupportedOperationException("Unimplemented method 'getAuthzAcntList'");
+        int x = 0;
+        if (x >= 0) {
+            logger.info("==== x >=0, current value:" + x);
+        }
+        return new ArrayList<>();
     }
 
     public List<Company> getRelatedCompanyList() {

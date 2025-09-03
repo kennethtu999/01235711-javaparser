@@ -20,7 +20,8 @@ public class ControlFlowFragment implements DiagramNode {
     private String sequenceId;
     private ControlFlowType type;
     private String condition; // The condition expression (e.g., "!input.isEmpty()")
-    private List<InteractionModel> interactions; // Interactions within this fragment
+    private List<InteractionModel> conditionInteractions; // Interactions used in condition evaluation
+    private List<InteractionModel> contentInteractions; // Interactions executed when condition is true
     private List<ControlFlowFragment> alternatives; // For ALTERNATIVE type (if/else)
 
     // 新增：上下文信息
@@ -31,15 +32,23 @@ public class ControlFlowFragment implements DiagramNode {
     private int endLineNumber; // 控制流程結束的行號
 
     public ControlFlowFragment() {
-        this.interactions = new ArrayList<>();
+        this.conditionInteractions = new ArrayList<>();
+        this.contentInteractions = new ArrayList<>();
         this.alternatives = new ArrayList<>();
     }
 
-    public void addInteraction(InteractionModel interaction) {
-        if (this.interactions == null) {
-            this.interactions = new ArrayList<>();
+    public void addConditionInteraction(InteractionModel interaction) {
+        if (this.conditionInteractions == null) {
+            this.conditionInteractions = new ArrayList<>();
         }
-        this.interactions.add(interaction);
+        this.conditionInteractions.add(interaction);
+    }
+
+    public void addContentInteraction(InteractionModel interaction) {
+        if (this.contentInteractions == null) {
+            this.contentInteractions = new ArrayList<>();
+        }
+        this.contentInteractions.add(interaction);
     }
 
     public void addAlternative(ControlFlowFragment alternative) {

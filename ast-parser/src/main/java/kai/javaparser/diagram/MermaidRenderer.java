@@ -1,9 +1,10 @@
 package kai.javaparser.diagram;
 
-import java.util.List;
-
-import kai.javaparser.model.*;
 import kai.javaparser.diagram.output.MermaidOutput;
+import kai.javaparser.model.ControlFlowFragment;
+import kai.javaparser.model.DiagramNode;
+import kai.javaparser.model.InteractionModel;
+import kai.javaparser.model.TraceResult;
 
 /**
  * Mermaid 渲染器：
@@ -43,37 +44,54 @@ public class MermaidRenderer {
 
     private void renderNode(DiagramNode node, String callerId) {
         if (node instanceof InteractionModel) {
-            renderInteraction((InteractionModel) node, callerId);
+            renderInteraction(false, (InteractionModel) node, callerId);
         } else if (node instanceof ControlFlowFragment) {
-            renderControlFlow((ControlFlowFragment) node, callerId);
+            renderControlFlow((ControlFlowFragment) node, callerId, true); // Initial call, always true for top-level
         }
     }
 
-    private void renderInteraction(InteractionModel interaction, String callerId) {
-        // 處理鏈式呼叫：需要按照正確的順序渲染
-        if (interaction.getChildren() != null && !interaction.getChildren().isEmpty()) {
-            // 這是一個鏈式呼叫，需要先渲染當前呼叫，然後渲染子呼叫
-            renderChainedInteraction(interaction, callerId);
+    private void renderInteraction(boolean isConditionEvaluation, InteractionModel interaction, String callerId) {
+        // 使用新的資料結構來處理渲染邏輯
+        if (interaction.getNextChainedCall() != null) {
+            // 這是一個鏈式呼叫，需要按照正確的順序渲染
+            renderChainedInteraction(isConditionEvaluation, interaction, callerId);
         } else {
             // 單一呼叫
-            renderSingleInteraction(interaction, callerId);
+            renderSingleInteraction(isConditionEvaluation, interaction, callerId);
         }
     }
 
-    private void renderSingleInteraction(InteractionModel interaction, String callerId) {
+    private void renderSingleInteraction(boolean isConditionEvaluation, InteractionModel interaction, String callerId) {
         String calleeClassFqn = interaction.getCallee() != null ? interaction.getCallee() : "";
         String calleeId = AstClassUtil.safeMermaidId(calleeClassFqn);
 
-        // 添加參與者並進行方法呼叫
-        output.addParticipant(calleeId, calleeClassFqn);
-        output.addCall(callerId, calleeId, interaction.getMethodName(),
-                interaction.getArguments(), interaction.getAssignedToVariable());
+        // 只有在未被過濾器排除的情況下才渲染此交互
+        if (!config.getFilter().shouldExclude(calleeClassFqn, interaction.getMethodName(), null)) {
+            output.addParticipant(calleeId, calleeClassFqn);
+            output.addCall(callerId, calleeId, interaction.getMethodName(),
+                    interaction.getArguments(), interaction.getAssignedToVariable(), isConditionEvaluation,
+                    interaction.getReturnValue());
 
-        output.activate(calleeId);
-        output.deactivate(calleeId);
+            // 只有在有內部呼叫時才添加 activate/deactivate
+            boolean hasInternalCalls = !config.isHideDetailsInChainExpression() &&
+                    interaction.getInternalCalls() != null &&
+                    !interaction.getInternalCalls().isEmpty();
+
+            if (hasInternalCalls) {
+                output.activate(calleeId);
+
+                // 渲染內部呼叫
+                for (DiagramNode internalCall : interaction.getInternalCalls()) {
+                    renderNode(internalCall, calleeId);
+                }
+
+                output.deactivate(calleeId);
+            }
+        }
     }
 
-    private void renderChainedInteraction(InteractionModel interaction, String callerId) {
+    private void renderChainedInteraction(boolean isConditionEvaluation, InteractionModel interaction,
+            String callerId) {
         // 對於鏈式呼叫 a.b().c()，正確的順序應該是：
         // 1. callerId -> a : b()
         // 2. a -> returnType : c()
@@ -81,28 +99,54 @@ public class MermaidRenderer {
         String calleeClassFqn = interaction.getCallee() != null ? interaction.getCallee() : "";
         String calleeId = AstClassUtil.safeMermaidId(calleeClassFqn);
 
-        // 添加參與者並進行方法呼叫
-        output.addParticipant(calleeId, calleeClassFqn);
-        output.addCall(callerId, calleeId, interaction.getMethodName(),
-                interaction.getArguments(), interaction.getAssignedToVariable());
+        // 只有在未被過濾器排除的情況下才渲染此交互
+        if (!config.getFilter().shouldExclude(calleeClassFqn, interaction.getMethodName(), null)) {
+            output.addParticipant(calleeId, calleeClassFqn);
+            output.addCall(callerId, calleeId, interaction.getMethodName(),
+                    interaction.getArguments(), interaction.getAssignedToVariable(), isConditionEvaluation,
+                    interaction.getReturnValue());
 
-        output.activate(calleeId);
+            // 檢查是否有內部呼叫或鏈式呼叫的下一個環節
+            boolean hasInternalCalls = !config.isHideDetailsInChainExpression() &&
+                    interaction.getInternalCalls() != null &&
+                    !interaction.getInternalCalls().isEmpty();
+            boolean hasNextChainedCall = interaction.getNextChainedCall() != null;
 
-        // 遞迴渲染子節點（鏈式呼叫的下一個環節）
-        for (InteractionModel child : interaction.getChildren()) {
-            renderNode(child, calleeId); // 注意：此時的 caller 是 callee
+            if (hasInternalCalls || hasNextChainedCall) {
+                output.activate(calleeId);
+
+                // 渲染內部呼叫（如果配置允許）
+                if (hasInternalCalls) {
+                    for (DiagramNode internalCall : interaction.getInternalCalls()) {
+                        renderNode(internalCall, calleeId);
+                    }
+                }
+
+                // 遞迴渲染鏈式呼叫的下一個環節
+                if (hasNextChainedCall) {
+                    renderInteraction(isConditionEvaluation, interaction.getNextChainedCall(), calleeId);
+                }
+
+                output.deactivate(calleeId);
+            }
         }
-
-        output.deactivate(calleeId);
     }
 
-    private void renderControlFlow(ControlFlowFragment fragment, String callerId) {
+    private void renderControlFlow(ControlFlowFragment fragment, String callerId, boolean isFirstAlternativeInBlock) {
         String condition = fragment.getCondition() != null ? fragment.getCondition() : "";
 
         // 開始控制流程片段
         switch (fragment.getType()) {
             case ALTERNATIVE:
-                output.addAltFragment(condition);
+                if (isFirstAlternativeInBlock) {
+                    output.addAltFragment(condition);
+                } else {
+                    if (condition.isEmpty()) {
+                        output.addElseFragment(); // Assuming a new method for 'else'
+                    } else {
+                        output.addElseIfFragment(condition); // Assuming a new method for 'else if'
+                    }
+                }
                 break;
             case LOOP:
                 output.addLoopFragment(condition);
@@ -112,91 +156,32 @@ public class MermaidRenderer {
                 break;
         }
 
-        // 渲染 interactions (只有在不隱藏細節的情況下)
-        if (fragment.getInteractions() != null && !config.isHideDetailsInConditionals()) {
-            for (InteractionModel interaction : fragment.getInteractions()) {
-                // 對於控制流程中的鏈式呼叫，需要使用 Stack 來處理
-                renderInteractionWithChain(interaction, callerId);
+        // 渲染條件評估互動 (只有在不隱藏細節的情況下)
+        if (fragment.getConditionInteractions() != null && !config.isHideDetailsInConditionals()) {
+            for (InteractionModel interaction : fragment.getConditionInteractions()) {
+                // 渲染條件評估的互動節點
+                renderInteraction(true, interaction, callerId);
+            }
+        }
+
+        // 渲染內容執行互動 (只有在不隱藏細節的情況下)
+        if (fragment.getContentInteractions() != null && !config.isHideDetailsInConditionals()) {
+            for (InteractionModel interaction : fragment.getContentInteractions()) {
+                // 渲染內容執行的互動節點
+                renderInteraction(false, interaction, callerId);
             }
         }
 
         // 渲染 alternatives
         if (fragment.getAlternatives() != null) {
+            boolean firstAlternative = true;
             for (ControlFlowFragment alternative : fragment.getAlternatives()) {
-                renderNode(alternative, callerId);
+                renderControlFlow(alternative, callerId, firstAlternative);
+                firstAlternative = false;
             }
         }
 
         // 結束控制流程片段
         output.endFragment();
-    }
-
-    /**
-     * 專門處理控制流程中的鏈式呼叫，模仿原始的 handleInteractionMode2 邏輯
-     */
-    private void renderInteractionWithChain(InteractionModel interaction, String callerId) {
-        java.util.Stack<InteractionModel> stack = new java.util.Stack<>();
-        stack.push(interaction);
-
-        // 如果有指定，就把所有中間節點都放進去（模仿原始邏輯）
-        if (!config.isHideDetailsInConditionals()) {
-            List<InteractionModel> child = interaction.getChildren();
-            while (child != null && !child.isEmpty()) {
-                InteractionModel node1 = child.get(0);
-                stack.push(node1);
-                child = node1.getChildren();
-            }
-        }
-
-        // 使用 Stack 反向處理鏈式呼叫
-        renderInteractionChainFromStack(stack, stack.pop(), callerId, null);
-    }
-
-    /**
-     * 模仿原始的 handleInteractionMode2 邏輯
-     */
-    private void renderInteractionChainFromStack(java.util.Stack<InteractionModel> stack,
-            InteractionModel currentNode,
-            String callerFqn, String calleeFqn) {
-
-        String activateCallId = null;
-        if (callerFqn == null) {
-            callerFqn = currentNode.getCaller();
-        } else {
-            activateCallId = AstClassUtil.safeMermaidId(callerFqn);
-            output.activate(activateCallId);
-        }
-
-        if (calleeFqn == null) {
-            calleeFqn = currentNode.getCallee();
-        }
-
-        // 渲染當前的交互
-        renderSingleInteractionForChain(currentNode, callerFqn, calleeFqn);
-
-        // 遞迴處理 Stack 中的下一個元素
-        if (!stack.isEmpty()) {
-            renderInteractionChainFromStack(stack, stack.pop(), calleeFqn, null);
-        }
-
-        if (activateCallId != null) {
-            output.deactivate(activateCallId);
-        }
-    }
-
-    /**
-     * 為鏈式呼叫渲染單一交互
-     */
-    private void renderSingleInteractionForChain(InteractionModel interaction, String callerFqn, String calleeFqn) {
-        if (config.isHideDetailsInConditionals()) {
-            return;
-        }
-
-        String calleeId = AstClassUtil.safeMermaidId(calleeFqn);
-        String callerId = AstClassUtil.safeMermaidId(callerFqn);
-
-        output.addParticipant(calleeId, calleeFqn);
-        output.addCall(callerId, calleeId, interaction.getMethodName(),
-                interaction.getArguments(), interaction.getReturnValue());
     }
 }

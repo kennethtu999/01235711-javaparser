@@ -2,6 +2,8 @@ package kai.javaparser.diagram.output.item;
 
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,13 +15,17 @@ public class MermailCall extends AbstractMermaidItem {
     private String calleeId;
     private String methodName;
     private List<String> arguments;
+    private boolean dashLine = false;
+    private String returnValue;
 
     public MermailCall(String actorName, String calleeId, String methodName,
-            List<String> arguments) {
+            List<String> arguments, boolean dashLine, String returnValue) {
         this.actorName = actorName;
         this.calleeId = calleeId;
         this.methodName = methodName;
         this.arguments = arguments;
+        this.dashLine = dashLine;
+        this.returnValue = returnValue;
     }
 
     /**
@@ -51,13 +57,15 @@ public class MermailCall extends AbstractMermaidItem {
 
     @Override
     public String toDiagramString(int indentLevel) {
+        String methodCall;
         if (arguments == null || arguments.isEmpty()) {
-            return getFullContent(indentLevel, String.format("%s->>%s: %s()", actorName, calleeId,
-                    methodName));
+            methodCall = String.format("%s%s>>%s: %s()", actorName, dashLine ? "--" : "-", calleeId, methodName);
+        } else {
+            methodCall = String.format("%s%s>>%s: %s(%s)", actorName, dashLine ? "--" : "-", calleeId,
+                    methodName, getArgumentsString());
         }
 
-        return getFullContent(indentLevel, String.format("%s->>%s: %s(%s)", actorName, calleeId,
-                methodName, getArgumentsString()));
+        return getFullContent(indentLevel, methodCall);
     }
 
 }

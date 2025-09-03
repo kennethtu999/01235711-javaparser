@@ -46,4 +46,8 @@ public class AstClassUtil {
     public static String safeMermaidId(String classFqn) {
         return classFqn.replace(".", "_").replaceAll("[()<>]", "").replace(",", "__");
     }
+
+    public static String getMethodFqn(String callee, String methodName) {
+        return callee + "." + methodName + "()";
+    }
 }
