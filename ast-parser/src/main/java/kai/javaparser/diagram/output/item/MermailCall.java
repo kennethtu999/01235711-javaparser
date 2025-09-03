@@ -62,7 +62,7 @@ public class MermailCall extends AbstractMermaidItem {
             methodCall = String.format("%s%s>>%s: %s()", actorName, dashLine ? "--" : "-", calleeId, methodName);
         } else {
             methodCall = String.format("%s%s>>%s: %s(%s)", actorName, dashLine ? "--" : "-", calleeId,
-                    methodName, getArgumentsString());
+                    methodName, getSafeValue(getArgumentsString()));
         }
 
         return getFullContent(indentLevel, methodCall);

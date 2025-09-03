@@ -19,4 +19,8 @@ public class AltFragment extends AbstractMermaidItem {
     public String toDiagramString(int indentLevel) {
         return getFullContent(indentLevel, "alt " + condition);
     }
+
+    public String getCondition() {
+        return condition;
+    }
 }

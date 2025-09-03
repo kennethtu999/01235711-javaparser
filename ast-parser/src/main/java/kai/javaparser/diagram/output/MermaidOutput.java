@@ -14,6 +14,7 @@ import kai.javaparser.diagram.output.item.ElseFragment;
 import kai.javaparser.diagram.output.item.ElseIfFragment;
 import kai.javaparser.diagram.output.item.EndFragment;
 import kai.javaparser.diagram.output.item.LoopFragment;
+import kai.javaparser.diagram.output.item.MermaidNote;
 import kai.javaparser.diagram.output.item.MermailActivate;
 import kai.javaparser.diagram.output.item.MermailActor;
 import kai.javaparser.diagram.output.item.MermailCall;
@@ -204,9 +205,42 @@ public class MermaidOutput {
     public List<AbstractMermaidItem> fixDiagram(List<AbstractMermaidItem> otherItems) {
         List<AbstractMermaidItem> result = new ArrayList<>();
 
-        // if line x = opt & line x+1 = end then ignore
+        /**
+         * [TYPE]
+         * opt
+         * end
+         * [ACTION] REMOVE
+         */
         for (int i = 0; i < otherItems.size(); i++) {
             if (otherItems.get(i) instanceof OptFragment && otherItems.get(i + 1) instanceof EndFragment) {
+                i = i + 1;
+            } else {
+                result.add(otherItems.get(i));
+            }
+        }
+
+        /**
+         * [TYPE]
+         * alt judgeCode.equals("02") || judgeCode.equals("08")
+         * end
+         * [REPLACE]
+         * Note over xxxx: judgeCode.equals("02") || judgeCode.equals("08")
+         */
+        otherItems = new ArrayList<>(result);
+        result.clear();
+        String lastCallee = null;
+        for (int i = 0; i < otherItems.size(); i++) {
+            AbstractMermaidItem item = otherItems.get(i);
+            if (item instanceof MermailCall) {
+                lastCallee = ((MermailCall) item).getCalleeId();
+            }
+
+            if (item instanceof AltFragment && otherItems.get(i + 1) instanceof EndFragment) {
+                result.add(
+                        new MermaidNote(
+                                lastCallee,
+                                MermaidNote.Location.right,
+                                ((AltFragment) item).getCondition()));
                 i = i + 1;
             } else {
                 result.add(otherItems.get(i));

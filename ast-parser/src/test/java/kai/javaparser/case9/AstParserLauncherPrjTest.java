@@ -36,8 +36,11 @@ public class AstParserLauncherPrjTest {
     }
 
     @Test
-    @Disabled
     void testParseFolder() {
+        if (!Case9Const.RUNNABLE) {
+            return;
+        }
+
         try {
             String outputDirArg = currentProjectDir.resolve("build/parsed-ast").toAbsolutePath().toString();
             String javaComplianceLevel = "8";

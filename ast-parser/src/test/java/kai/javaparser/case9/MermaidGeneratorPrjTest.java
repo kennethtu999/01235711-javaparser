@@ -12,11 +12,10 @@ import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import kai.javaparser.diagram.SequenceOutputGenerator;
 import kai.javaparser.diagram.SequenceOutputConfig;
+import kai.javaparser.diagram.SequenceOutputGenerator;
 import kai.javaparser.diagram.TraceFilter;
 import kai.javaparser.diagram.filter.DefaultTraceFilter;
 
@@ -36,9 +35,12 @@ public class MermaidGeneratorPrjTest {
          * @throws IOException
          * @throws URISyntaxException
          */
-        @Disabled
         @Test
         void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
+                if (!Case9Const.RUNNABLE) {
+                        return;
+                }
+
                 Path resourcePath = Paths.get("build/parsed-ast");
                 String methodSignature = "pagecode.cac.cacq001.CACQ001_1.initViewForm()";
                 String basePackage = "pagecode";
@@ -64,7 +66,7 @@ public class MermaidGeneratorPrjTest {
                 TraceFilter filter = new DefaultTraceFilter(exclusionClassSet, exclusionMethodSet);
 
                 SequenceOutputConfig config = SequenceOutputConfig.builder()
-                                .depth(2)
+                                .depth(10)
                                 .hideDetailsInConditionals(false)
                                 .hideDetailsInChainExpression(false)
                                 .basePackage(basePackage)
