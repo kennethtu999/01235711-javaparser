@@ -35,39 +35,6 @@ public class InteractionModel implements DiagramNode {
     private InteractionModel nextChainedCall; // 鏈式呼叫的下一個環節
     private List<DiagramNode> internalCalls; // 被呼叫方法內部的所有活動
 
-    // 向後兼容的 getter，用於現有代碼
-    @JsonIgnore
-    public List<InteractionModel> getChildren() {
-        List<InteractionModel> result = new ArrayList<>();
-        if (nextChainedCall != null) {
-            result.add(nextChainedCall);
-        }
-        return result;
-    }
-
-    // 向後兼容的 setter，用於現有代碼
-    @JsonIgnore
-    public void setChildren(List<InteractionModel> children) {
-        if (children != null && !children.isEmpty()) {
-            this.nextChainedCall = children.get(0);
-        }
-    }
-
-    // 向後兼容的 addChild 方法
-    @JsonIgnore
-    public void addChild(InteractionModel child) {
-        if (this.nextChainedCall == null) {
-            this.nextChainedCall = child;
-        } else {
-            // 如果已經有鏈式呼叫，則添加到鏈的末尾
-            InteractionModel current = this.nextChainedCall;
-            while (current.nextChainedCall != null) {
-                current = current.nextChainedCall;
-            }
-            current.nextChainedCall = child;
-        }
-    }
-
     public InteractionModel() {
     }
 
@@ -98,7 +65,6 @@ public class InteractionModel implements DiagramNode {
     /**
      * Get enhanced caller representation with variable name and instance ID
      */
-    @JsonIgnore
     public String getEnhancedCaller() {
         if (callerVariable != null && !callerVariable.isEmpty()) {
             if (callerInstanceId != null && !callerInstanceId.isEmpty()) {
@@ -113,7 +79,6 @@ public class InteractionModel implements DiagramNode {
     /**
      * Get enhanced callee representation with variable name and instance ID
      */
-    @JsonIgnore
     public String getEnhancedCallee() {
         if (calleeVariable != null && !calleeVariable.isEmpty()) {
             if (calleeInstanceId != null && !calleeInstanceId.isEmpty()) {
@@ -126,7 +91,6 @@ public class InteractionModel implements DiagramNode {
     }
 
     @Override
-    @JsonIgnore
     public int getStartLineNumber() {
         return this.lineNumber;
     }

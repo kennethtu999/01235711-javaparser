@@ -154,8 +154,6 @@ public class InvocationHandler {
             }
         } else if (context.getCurrentMethodGroup() != null) {
             context.getCurrentMethodGroup().addInteraction(interaction);
-        } else {
-            context.getSequenceData().getAllInteractions().add(interaction);
         }
     }
 

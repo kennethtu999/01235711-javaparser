@@ -31,41 +31,8 @@ public class SequenceDiagramData {
     }
 
     /**
-     * 獲取所有互動（扁平化，用於向後兼容）
-     */
-    @JsonIgnore
-    public List<InteractionModel> getAllInteractions() {
-        List<InteractionModel> allInteractions = new ArrayList<>();
-        if (methodGroups != null) {
-            for (MethodGroup group : methodGroups) {
-                if (group.getInteractions() != null) {
-                    allInteractions.addAll(group.getInteractions());
-                }
-            }
-        }
-        return allInteractions;
-    }
-
-    /**
-     * 獲取所有控制流程片段（扁平化，用於向後兼容）
-     */
-    @JsonIgnore
-    public List<ControlFlowFragment> getAllControlFlowFragments() {
-        List<ControlFlowFragment> allFragments = new ArrayList<>();
-        if (methodGroups != null) {
-            for (MethodGroup group : methodGroups) {
-                if (group.getControlFlowFragments() != null) {
-                    allFragments.addAll(group.getControlFlowFragments());
-                }
-            }
-        }
-        return allFragments;
-    }
-
-    /**
      * 根據方法名查找方法分組
      */
-    @JsonIgnore
     public MethodGroup findMethodGroup(String methodName) {
         if (methodGroups != null) {
             for (MethodGroup group : methodGroups) {
@@ -80,7 +47,6 @@ public class SequenceDiagramData {
     /**
      * 根據行號查找所在的方法分組
      */
-    @JsonIgnore
     public MethodGroup findMethodGroupByLineNumber(int lineNumber) {
         if (methodGroups != null) {
             for (MethodGroup group : methodGroups) {

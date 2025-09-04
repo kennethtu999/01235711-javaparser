@@ -61,7 +61,6 @@ public class ControlFlowFragment implements DiagramNode {
     /**
      * Get full context path for this control flow fragment
      */
-    @JsonIgnore
     public String getFullContextPath() {
         if (contextPath != null && !contextPath.isEmpty()) {
             return contextPath;
@@ -82,7 +81,6 @@ public class ControlFlowFragment implements DiagramNode {
     /**
      * Get context-aware description
      */
-    @JsonIgnore
     public String getContextAwareDescription() {
         StringBuilder desc = new StringBuilder();
 

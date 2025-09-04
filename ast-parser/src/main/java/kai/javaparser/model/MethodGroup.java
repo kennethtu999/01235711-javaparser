@@ -1,11 +1,11 @@
 package kai.javaparser.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.Data;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import lombok.Data;
 
 /**
  * 代表方法分組，用於將互動按方法進行分組
@@ -44,7 +44,6 @@ public class MethodGroup {
     /**
      * 獲取方法的行數範圍描述
      */
-    @JsonIgnore
     public String getLineRangeDescription() {
         return "lines " + startLineNumber + "-" + endLineNumber;
     }
@@ -52,7 +51,6 @@ public class MethodGroup {
     /**
      * 獲取完整的方法描述
      */
-    @JsonIgnore
     public String getFullDescription() {
         StringBuilder desc = new StringBuilder();
         desc.append(className).append(".").append(methodName);

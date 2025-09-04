@@ -3,6 +3,7 @@ package kai.javaparser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -12,11 +13,14 @@ import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import kai.javaparser.model.FieldInfo;
 import kai.javaparser.model.FileAstData;
 import kai.javaparser.model.SequenceDiagramData;
 
@@ -73,12 +77,16 @@ public class AstExtractor {
             // 使用自定義訪問者提取互動
             cu.accept(new EnhancedInteractionModelVisitor(sequenceData, cu));
 
+            // 提取 fields 信息
+            List<FieldInfo> fields = extractFields(cu);
+
             FileAstData fileAstData = new FileAstData();
             fileAstData.setPackageName(cu.getPackage().getName().getFullyQualifiedName());
             fileAstData.setFileContent(fileContentChars);
             fileAstData.setRelativePath(sourceFilePath.getFileName().toString());
             fileAstData.setAbsolutePath(sourceFilePath.toAbsolutePath().toString());
             fileAstData.setSequenceDiagramData(sequenceData);
+            fileAstData.setFields(fields);
             @SuppressWarnings("unchecked")
             List<String> imports = ((List<ImportDeclaration>) cu.imports()).stream()
                     .map(i -> i.getName().getFullyQualifiedName())
@@ -110,6 +118,70 @@ public class AstExtractor {
             }
         }
         return "unknown";
+    }
+
+    /**
+     * 提取類別中的所有 fields
+     */
+    private List<FieldInfo> extractFields(CompilationUnit cu) {
+        List<FieldInfo> fields = new ArrayList<>();
+
+        for (Object typeDecl : cu.types()) {
+            if (typeDecl instanceof TypeDeclaration) {
+                TypeDeclaration type = (TypeDeclaration) typeDecl;
+
+                // 提取 fields
+                for (Object fieldDecl : type.bodyDeclarations()) {
+                    if (fieldDecl instanceof FieldDeclaration) {
+                        FieldDeclaration field = (FieldDeclaration) fieldDecl;
+
+                        // 獲取修飾符
+                        StringBuilder modifiers = new StringBuilder();
+                        for (Object modifier : field.modifiers()) {
+                            if (modifiers.length() > 0) {
+                                modifiers.append(" ");
+                            }
+                            modifiers.append(modifier.toString());
+                        }
+
+                        // 獲取類型
+                        String fieldType = field.getType().toString();
+
+                        // 獲取行號
+                        int startLine = cu.getLineNumber(field.getStartPosition());
+                        int endLine = cu.getLineNumber(field.getStartPosition() + field.getLength());
+
+                        // 處理每個變數宣告片段
+                        for (Object fragment : field.fragments()) {
+                            if (fragment instanceof VariableDeclarationFragment) {
+                                VariableDeclarationFragment varFragment = (VariableDeclarationFragment) fragment;
+                                String fieldName = varFragment.getName().getIdentifier();
+
+                                // 獲取預設值
+                                String defaultValue = null;
+                                if (varFragment.getInitializer() != null) {
+                                    defaultValue = varFragment.getInitializer().toString();
+                                }
+
+                                FieldInfo fieldInfo = new FieldInfo(
+                                        fieldName,
+                                        fieldType,
+                                        modifiers.toString(),
+                                        startLine,
+                                        endLine);
+                                fieldInfo.setDefaultValue(defaultValue);
+
+                                fields.add(fieldInfo);
+                                logger.debug("提取 field: {} {} {}", modifiers.toString(), fieldType, fieldName);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        logger.info("提取到 {} 個 fields", fields.size());
+        return fields;
     }
 
 }

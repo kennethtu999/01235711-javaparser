@@ -40,9 +40,6 @@ public class ControlFlowHandler {
             context.getCurrentControlFlowFragment().addAlternative(fragment);
         } else if (context.getCurrentMethodGroup() != null) {
             context.getCurrentMethodGroup().addControlFlowFragment(fragment);
-        } else {
-            // 如果不在方法內，添加到序列數據（向後兼容）
-            context.getSequenceData().getAllControlFlowFragments().add(fragment);
         }
 
         // 設置當前控制流程片段，但不使用複雜的 stack
@@ -115,8 +112,6 @@ public class ControlFlowHandler {
             context.getCurrentControlFlowFragment().addAlternative(fragment);
         } else if (context.getCurrentMethodGroup() != null) {
             context.getCurrentMethodGroup().addControlFlowFragment(fragment);
-        } else {
-            context.getSequenceData().getAllControlFlowFragments().add(fragment);
         }
 
         // 設置當前控制流程片段
@@ -163,8 +158,6 @@ public class ControlFlowHandler {
             context.getCurrentControlFlowFragment().addAlternative(fragment);
         } else if (context.getCurrentMethodGroup() != null) {
             context.getCurrentMethodGroup().addControlFlowFragment(fragment);
-        } else {
-            context.getSequenceData().getAllControlFlowFragments().add(fragment);
         }
 
         // 設置當前控制流程片段

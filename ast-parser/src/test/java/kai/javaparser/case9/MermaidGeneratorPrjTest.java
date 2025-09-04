@@ -45,23 +45,30 @@ public class MermaidGeneratorPrjTest {
                 String methodSignature = "pagecode.cac.cacq001.CACQ001_1.initViewForm()";
                 String basePackage = "pagecode";
 
+                // Set<String> exclusionClassSet = new HashSet<>(Arrays.asList(
+                // "org",
+                // "java",
+                // "com.ibm.tw.commons",
+                // "java.util.logging.Logger"));
+
+                // Set<String> exclusionMethodSet = new HashSet<>(Arrays.asList(
+                // "getBundleString",
+                // "setWidth",
+                // "setStyleClass",
+                // "addHeader",
+                // "setColspan",
+                // "setAlign",
+                // "getDisplayMoney",
+                // "add",
+                // "addRecord"));
+
                 Set<String> exclusionClassSet = new HashSet<>(Arrays.asList(
-                                "org",
                                 "java",
-                                "com.ibm.tw.commons",
-                                "com.scsb.ewb.j2ee",
-                                "java.util.logging.Logger"));
+                                "org",
+                                "com.ibm.tw.commons.exception"));
 
                 Set<String> exclusionMethodSet = new HashSet<>(Arrays.asList(
-                                "getBundleString",
-                                "setWidth",
-                                "setStyleClass",
-                                "addHeader",
-                                "setColspan",
-                                "setAlign",
-                                "getDisplayMoney",
-                                "add",
-                                "addRecord"));
+                                "getBundleString"));
 
                 TraceFilter filter = new DefaultTraceFilter(exclusionClassSet, exclusionMethodSet);
 

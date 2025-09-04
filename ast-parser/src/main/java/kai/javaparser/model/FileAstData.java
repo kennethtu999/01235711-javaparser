@@ -31,14 +31,17 @@ public class FileAstData implements Serializable {
     private String packageName;
     private List<String> imports;
     private SequenceDiagramData sequenceDiagramData; // 檔案 AST 的根節點
+    private List<FieldInfo> fields; // 類別的所有屬性
 
     public FileAstData() {
         this.imports = new ArrayList<>();
+        this.fields = new ArrayList<>();
     }
 
     public FileAstData(char[] fileContent) {
         this.fileContent = fileContent;
         this.imports = new ArrayList<>();
+        this.fields = new ArrayList<>();
     }
 
     /**
@@ -47,7 +50,6 @@ public class FileAstData implements Serializable {
      *
      * @return 包含 FQN 的 Optional，如果找不到則為空。
      */
-    @JsonIgnore // 此方法是輔助方法，不需要序列化到 JSON 中
     public Optional<String> findTopLevelClassFqn() {
         if (sequenceDiagramData == null || packageName == null) {
             return Optional.empty();
@@ -61,7 +63,6 @@ public class FileAstData implements Serializable {
      * @param methodFqn 方法的 FQN，例如 "com.example.MyClass.myMethod(int)"
      * @return 包含方法 AST 節點的 Optional，如果找不到則為空。
      */
-    @JsonIgnore
     public Optional<SequenceDiagramData> findMethodNode(String methodFqn) {
         String methodSignature = AstClassUtil.getMethodSignature(methodFqn);
         String simpleMethodName = methodSignature.split("\\(")[0];
@@ -95,7 +96,6 @@ public class FileAstData implements Serializable {
      * @param methodNode 方法節點
      * @return 方法呼叫列表
      */
-    @JsonIgnore
     public List<InteractionModel> findMethodInvocations(SequenceDiagramData methodNode) {
         List<InteractionModel> invocations = new ArrayList<>();
 
