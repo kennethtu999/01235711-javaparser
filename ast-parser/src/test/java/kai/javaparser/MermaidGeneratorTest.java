@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import kai.javaparser.diagram.SequenceOutputConfig;
-import kai.javaparser.diagram.SequenceOutputGenerator;
+import kai.javaparser.diagram.DiagramService;
 import kai.javaparser.diagram.TraceFilter;
 import kai.javaparser.diagram.filter.DefaultTraceFilter;
 
@@ -24,7 +22,7 @@ import kai.javaparser.diagram.filter.DefaultTraceFilter;
 public class MermaidGeneratorTest extends BaseTest {
 
   @Autowired
-  private SequenceOutputGenerator sequenceOutputGenerator;
+  private DiagramService diagramService;
 
   /**
    * 依照指定的Method，生成對應的Sequence Diagram
@@ -34,7 +32,6 @@ public class MermaidGeneratorTest extends BaseTest {
    */
   @Test
   void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
-    Path resourcePath = Paths.get(PARSED_AST_DIR);
     String methodSignature = "com.example.case2.LoginUser.getLevel1()";
     String basePackage = "com.example";
 
@@ -52,8 +49,8 @@ public class MermaidGeneratorTest extends BaseTest {
         .filter(filter)
         .build();
 
-    // Act: 執行 MermaidGenerator 的 main 方法
-    String output = sequenceOutputGenerator.generate(methodSignature, config);
+    // Act: 執行 DiagramService 的 generateDiagram 方法
+    String output = diagramService.generateDiagram(methodSignature, config);
 
     // 為了方便除錯，可以在測試執行時將捕獲的內容印到標準錯誤流
     // System.err.println("--- Captured MermaidGenerator Output ---\n" + output);

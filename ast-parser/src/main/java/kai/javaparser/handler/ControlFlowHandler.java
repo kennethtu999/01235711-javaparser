@@ -5,8 +5,6 @@ import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import kai.javaparser.model.ControlFlowFragment;
 
@@ -19,8 +17,6 @@ import kai.javaparser.model.ControlFlowFragment;
  * 3. 讓追蹤邏輯和渲染邏輯分離
  */
 public class ControlFlowHandler {
-    private static final Logger logger = LoggerFactory.getLogger(ControlFlowHandler.class);
-
     public boolean visit(IfStatement node, HandlerContext context) {
         ControlFlowFragment fragment = new ControlFlowFragment();
         fragment.setSequenceId(String.valueOf(context.getAndIncrementSequenceCounter()));

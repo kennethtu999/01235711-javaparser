@@ -17,8 +17,6 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.WhileStatement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import kai.javaparser.handler.ControlFlowHandler;
 import kai.javaparser.handler.HandlerContext;
@@ -38,8 +36,6 @@ import kai.javaparser.model.SequenceDiagramData;
  * specific node handling to specialized handlers.
  */
 public class EnhancedInteractionModelVisitor extends ASTVisitor {
-    private static final Logger logger = LoggerFactory.getLogger(EnhancedInteractionModelVisitor.class);
-
     private final HandlerContext context;
     private final ControlFlowHandler controlFlowHandler;
     private final InvocationHandler invocationHandler;

@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import kai.javaparser.diagram.SequenceOutputConfig;
-import kai.javaparser.diagram.SequenceOutputGenerator;
+import kai.javaparser.diagram.DiagramService;
 import kai.javaparser.model.ProcessRequest;
 
 /**
@@ -32,7 +32,7 @@ public class AstProcessingFacadeService {
     private CodeExtractorService codeExtractorService;
 
     @Autowired
-    private SequenceOutputGenerator sequenceOutputGenerator;
+    private DiagramService diagramService;
 
     /**
      * 統一處理方法
@@ -110,8 +110,8 @@ public class AstProcessingFacadeService {
                 .depth(depth)
                 .build();
 
-        // 使用注入的SequenceOutputGenerator生成
-        String mermaidResult = sequenceOutputGenerator.generate(request.getEntryPointMethodFqn(), config);
+        // 使用注入的DiagramService生成
+        String mermaidResult = diagramService.generateDiagram(request.getEntryPointMethodFqn(), config);
         logger.info("Mermaid序列圖生成完成");
         return mermaidResult;
     }

@@ -2,8 +2,6 @@ package kai.javaparser.diagram.output.item;
 
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
-
 import lombok.Getter;
 import lombok.Setter;
 
