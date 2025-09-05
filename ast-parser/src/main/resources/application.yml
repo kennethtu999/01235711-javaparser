@@ -12,3 +12,6 @@ spring:
   application:
     name: ast-parser
     description: Java AST Parser with Spring Boot 3
+
+app:
+  astDir: parsed-ast

@@ -7,19 +7,21 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.annotation.PostConstruct;
 import kai.javaparser.model.FileAstData;
-import kai.javaparser.util.Util;
 
 /**
  * 基於檔案系統的 AST 資料儲存實現
@@ -31,26 +33,29 @@ import kai.javaparser.util.Util;
 public class FileSystemAstRepository implements AstRepository {
 
     private static final Logger logger = LoggerFactory.getLogger(FileSystemAstRepository.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String CACHE_FILE_NAME = "ast-index.cache";
 
     // 索引: 類別的 FQN -> 包含該類別 AST 的 JSON 檔案路徑
     private Map<String, Path> classToPathIndex;
     // 快取: JSON 檔案路徑 -> 已解析的 FileAstData 物件，避免重複讀取和反序列化 JSON
-    private final Map<Path, FileAstData> astDataCache = new HashMap<>();
+    private final Map<Path, FileAstData> astDataCache = new ConcurrentHashMap<>();
+
+    private final ObjectMapper mapper;
 
     private Path astJsonDir;
     private Path cacheFilePath;
 
-    public FileSystemAstRepository() {
-        // 預設建構函式，用於 Spring 依賴注入
-        this.classToPathIndex = new HashMap<>();
+    @Value("${app.astDir}")
+    private String initAstDir;
+
+    @Autowired
+    public FileSystemAstRepository(ObjectMapper mapper) {
+        this.mapper = mapper;
     }
 
-    public FileSystemAstRepository(Path astJsonDir) {
-        this.astJsonDir = astJsonDir;
-        this.cacheFilePath = astJsonDir.resolve(CACHE_FILE_NAME);
-        this.classToPathIndex = new HashMap<>();
+    @PostConstruct
+    public void postConstruct() {
+        this.initialize(Path.of(initAstDir));
     }
 
     /**
@@ -61,6 +66,7 @@ public class FileSystemAstRepository implements AstRepository {
     public void initialize(Path astJsonDir) {
         this.astJsonDir = astJsonDir;
         this.cacheFilePath = astJsonDir.resolve(CACHE_FILE_NAME);
+        this.classToPathIndex = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -85,7 +91,7 @@ public class FileSystemAstRepository implements AstRepository {
         Files.createDirectories(outputFile.getParent());
 
         // 儲存 JSON 檔案
-        Util.writeJson(outputFile, fileAstData);
+        mapper.writeValue(outputFile.toFile(), fileAstData);
 
         // 更新索引
         fileAstData.findTopLevelClassFqn().ifPresent(classFqn -> {
@@ -169,7 +175,7 @@ public class FileSystemAstRepository implements AstRepository {
 
     @SuppressWarnings("unchecked")
     private void loadFromCache() throws IOException, ClassNotFoundException {
-        Map<String, String> data = Util.readJson(cacheFilePath, Map.class);
+        Map<String, String> data = mapper.readValue(cacheFilePath.toFile(), Map.class);
         if (data != null) {
             data.forEach((classFqn, path) -> {
                 classToPathIndex.put(classFqn, Path.of(path.replaceFirst("file://", "")));
@@ -178,7 +184,7 @@ public class FileSystemAstRepository implements AstRepository {
     }
 
     private void saveToCache() throws IOException {
-        Util.writeJson(cacheFilePath, this.classToPathIndex);
+        mapper.writeValue(cacheFilePath.toFile(), this.classToPathIndex);
     }
 
     private void buildFromFileSystem() throws IOException {
@@ -199,7 +205,7 @@ public class FileSystemAstRepository implements AstRepository {
 
     private FileAstData getAstDataFromFile(Path path) {
         try {
-            FileAstData result = objectMapper.readValue(path.toFile(), FileAstData.class);
+            FileAstData result = mapper.readValue(path.toFile(), FileAstData.class);
             if (result == null) {
                 logger.warn("JSON 解析結果為 null: {}", path);
                 return null;

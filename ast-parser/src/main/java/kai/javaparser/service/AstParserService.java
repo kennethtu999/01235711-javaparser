@@ -20,7 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import kai.javaparser.AstExtractor;
+import kai.javaparser.java2ast.JavaToAstFile;
 import kai.javaparser.repository.AstRepository;
 import kai.javaparser.repository.FileSystemAstRepository;
 
@@ -85,7 +85,7 @@ public class AstParserService {
         logger.info("Java compliance level: {}", javaComplianceLevel);
         logger.info("Output directory: {}", outputBaseDir0.toAbsolutePath());
 
-        AstExtractor astExtractor = new AstExtractor();
+        JavaToAstFile astExtractor = new JavaToAstFile();
 
         try {
             Files.createDirectories(outputBaseDir0);

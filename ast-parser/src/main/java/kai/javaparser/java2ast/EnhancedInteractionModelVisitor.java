@@ -1,4 +1,4 @@
-package kai.javaparser;
+package kai.javaparser.java2ast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,9 +18,9 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
-import kai.javaparser.handler.ControlFlowHandler;
-import kai.javaparser.handler.HandlerContext;
-import kai.javaparser.handler.InvocationHandler;
+import kai.javaparser.java2ast.handler.ControlFlowHandler;
+import kai.javaparser.java2ast.handler.HandlerContext;
+import kai.javaparser.java2ast.handler.InvocationHandler;
 import kai.javaparser.model.MethodGroup;
 import kai.javaparser.model.SequenceDiagramData;
 

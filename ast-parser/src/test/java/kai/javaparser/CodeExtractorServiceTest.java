@@ -32,13 +32,13 @@ public class CodeExtractorServiceTest extends BaseTest {
     @Autowired
     private CodeExtractorService codeExtractorService;
 
-    private Path astDir;
+    private Path astDirPath;
     private Path outputDir;
 
     @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
-        astDir = Paths.get(PARSED_AST_DIR);
+        astDirPath = Paths.get(astDir);
 
         // 確保輸出目錄存在
         outputDir = Paths.get("build/test-output");
@@ -58,7 +58,7 @@ public class CodeExtractorServiceTest extends BaseTest {
 
         CodeExtractionRequest request = CodeExtractionRequest.builder()
                 .entryPointMethodFqn(entryPointMethodFqn)
-                .astDir(astDir.toAbsolutePath().toString())
+                .astDir(astDirPath.toAbsolutePath().toString())
                 .basePackage(basePackage)
                 .maxDepth(maxDepth)
                 .includeImports(true)
@@ -114,7 +114,7 @@ public class CodeExtractorServiceTest extends BaseTest {
 
         CodeExtractionRequest request = CodeExtractionRequest.builder()
                 .entryPointMethodFqn(entryPointMethodFqn)
-                .astDir(astDir.toAbsolutePath().toString())
+                .astDir(astDirPath.toAbsolutePath().toString())
                 .basePackage(basePackage)
                 .maxDepth(maxDepth)
                 .includeImports(true)
@@ -164,7 +164,7 @@ public class CodeExtractorServiceTest extends BaseTest {
         // 1. 完整提取
         CodeExtractionRequest fullRequest = CodeExtractionRequest.builder()
                 .entryPointMethodFqn(entryPointMethodFqn)
-                .astDir(astDir.toAbsolutePath().toString())
+                .astDir(astDirPath.toAbsolutePath().toString())
                 .basePackage(basePackage)
                 .maxDepth(maxDepth)
                 .includeImports(true)
@@ -177,7 +177,7 @@ public class CodeExtractorServiceTest extends BaseTest {
         // 2. 只提取使用的方法
         CodeExtractionRequest usedRequest = CodeExtractionRequest.builder()
                 .entryPointMethodFqn(entryPointMethodFqn)
-                .astDir(astDir.toAbsolutePath().toString())
+                .astDir(astDirPath.toAbsolutePath().toString())
                 .basePackage(basePackage)
                 .maxDepth(maxDepth)
                 .includeImports(true)

@@ -1,4 +1,4 @@
-package kai.javaparser;
+package kai.javaparser.java2ast;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,9 +24,9 @@ import kai.javaparser.model.FieldInfo;
 import kai.javaparser.model.FileAstData;
 import kai.javaparser.model.SequenceDiagramData;
 
-public class AstExtractor {
+public class JavaToAstFile {
 
-    private static final Logger logger = LoggerFactory.getLogger(AstExtractor.class);
+    private static final Logger logger = LoggerFactory.getLogger(JavaToAstFile.class);
 
     /**
      * Parses a single Java file and extracts its AST data.

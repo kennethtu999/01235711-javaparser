@@ -1,4 +1,4 @@
-package kai.javaparser.handler;
+package kai.javaparser.java2ast.handler;
 
 import kai.javaparser.model.*;
 import org.eclipse.jdt.core.dom.CompilationUnit;

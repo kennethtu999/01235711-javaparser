@@ -9,20 +9,27 @@ import java.nio.file.Paths;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 import kai.javaparser.repository.FileSystemAstRepository;
 import kai.javaparser.service.AstParserService;
 
 public class BaseTest {
-  public static final String PARSED_AST_DIR = "parsed-ast";
+
+  @Value("${app.astDir}")
+  protected String astDir;
+
+  @Autowired
+  private FileSystemAstRepository repository;
 
   @BeforeEach
   public void setUp() throws Exception {
     // Locate the test-project subproject relative to the current project
     Path currentProjectDir = Paths.get("").toAbsolutePath();
 
-    if (Files.exists(currentProjectDir.resolve(PARSED_AST_DIR))) {
-      deleteDirectory(currentProjectDir.resolve(PARSED_AST_DIR).toFile());
+    if (Files.exists(currentProjectDir.resolve(astDir))) {
+      deleteDirectory(currentProjectDir.resolve(astDir).toFile());
 
     }
 
@@ -30,12 +37,12 @@ public class BaseTest {
 
     assertTrue(Files.exists(testProjectRoot) && Files.isDirectory(testProjectRoot));
 
-    String outputDirArg = currentProjectDir.resolve(PARSED_AST_DIR).toAbsolutePath().toString();
+    String outputDirArg = currentProjectDir.resolve(astDir).toAbsolutePath().toString();
 
     System.out.println("Running AstParserService for test project: " + testProjectRoot);
 
     // 建立測試用的 repository
-    FileSystemAstRepository repository = new FileSystemAstRepository(Paths.get(outputDirArg));
+    repository.initialize(Paths.get(outputDirArg));
     AstParserService astParserService = new AstParserService(repository);
     String result = astParserService.parseSourceDirectory(testProjectRoot.toString(), outputDirArg);
     System.out.println("AST parsing result: " + result);

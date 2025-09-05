@@ -1,4 +1,4 @@
-package kai.javaparser.handler;
+package kai.javaparser.java2ast.handler;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
