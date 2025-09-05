@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -42,11 +43,16 @@ public class CodeExtractorService {
 
     private final SequenceTraceService sequenceTraceService;
     private final AstIndex astIndex;
+    private final SourceProvider sourceProvider;
+    private final SourceCodeWeaver sourceCodeWeaver;
 
     @Autowired
-    public CodeExtractorService(SequenceTraceService sequenceTraceService, AstIndex astIndex) {
+    public CodeExtractorService(SequenceTraceService sequenceTraceService, AstIndex astIndex,
+            SourceProvider sourceProvider, SourceCodeWeaver sourceCodeWeaver) {
         this.sequenceTraceService = sequenceTraceService;
         this.astIndex = astIndex;
+        this.sourceProvider = sourceProvider;
+        this.sourceCodeWeaver = sourceCodeWeaver;
     }
 
     /**
@@ -92,17 +98,8 @@ public class CodeExtractorService {
             Set<String> involvedClasses = traceDependencies(request);
             logger.info("識別到 {} 個相關類別: {}", involvedClasses.size(), involvedClasses);
 
-            // 2. 提取每個類別的原始碼
-            List<ClassSourceCode> classSources;
-            if (request.isExtractOnlyUsedMethods()) {
-                logger.info("使用只提取使用的方法模式");
-                // 只提取使用的方法，但包含所有屬性
-                classSources = extractUsedMethodsAndAllFields(involvedClasses, astIndex, request);
-            } else {
-                logger.info("使用完整提取模式");
-                // 提取完整類別
-                classSources = extractClassSources(involvedClasses, astIndex, request);
-            }
+            // 2. 使用新的抽象層提取原始碼
+            List<ClassSourceCode> classSources = extractClassSourcesWithNewAbstractions(involvedClasses, request);
 
             // 3. 合併代碼
             String mergedCode = mergeSourceCode(classSources, request);
@@ -156,6 +153,107 @@ public class CodeExtractorService {
         }
 
         return involvedClasses;
+    }
+
+    /**
+     * 使用新的抽象層提取類別原始碼
+     */
+    private List<ClassSourceCode> extractClassSourcesWithNewAbstractions(Set<String> classFqns,
+            CodeExtractionRequest request) {
+        logger.info("使用新的抽象層提取原始碼，提供者: {}, 編織器: {}",
+                sourceProvider.getProviderName(), sourceCodeWeaver.getWeaverName());
+
+        List<ClassSourceCode> classSources = new ArrayList<>();
+
+        // 1. 使用SourceProvider獲取原始碼
+        Map<String, String> sourceCodes = sourceProvider.getSourceCodes(classFqns);
+
+        for (String classFqn : classFqns) {
+            String sourceCode = sourceCodes.get(classFqn);
+            if (sourceCode == null) {
+                logger.warn("無法獲取類別原始碼: {}", classFqn);
+                continue;
+            }
+
+            // 2. 創建編織規則
+            SourceCodeWeaver.WeavingRules rules = createWeavingRules(classFqn, request);
+
+            // 3. 使用SourceCodeWeaver編織原始碼
+            SourceCodeWeaver.WeavingResult weavingResult = sourceCodeWeaver.weave(sourceCode, rules);
+
+            if (!weavingResult.isSuccess()) {
+                logger.warn("原始碼編織失敗: {} - {}", classFqn, weavingResult.getErrorMessage());
+                // 如果編織失敗，保持原始碼不變
+            } else {
+                sourceCode = weavingResult.getWovenSourceCode();
+            }
+
+            // 4. 創建ClassSourceCode
+            String relativePath = classFqn.replace('.', '/') + ".java";
+            classSources.add(ClassSourceCode.builder()
+                    .classFqn(classFqn)
+                    .relativePath(relativePath)
+                    .sourceCode(sourceCode)
+                    .build());
+
+            logger.debug("提取類別原始碼: {} -> {} 行", classFqn, sourceCode.split("\n").length);
+        }
+
+        return classSources;
+    }
+
+    /**
+     * 創建編織規則
+     */
+    private SourceCodeWeaver.WeavingRules createWeavingRules(String classFqn, CodeExtractionRequest request) {
+        // 收集使用的方法名稱
+        Set<String> usedMethodNames = collectUsedMethodNames(classFqn, request);
+
+        return new SourceCodeWeaver.WeavingRules() {
+            @Override
+            public boolean includeImports() {
+                return request.isIncludeImports();
+            }
+
+            @Override
+            public boolean includeComments() {
+                return request.isIncludeComments();
+            }
+
+            @Override
+            public boolean extractOnlyUsedMethods() {
+                return request.isExtractOnlyUsedMethods();
+            }
+
+            @Override
+            public Set<String> getUsedMethodNames() {
+                return usedMethodNames;
+            }
+
+            @Override
+            public String getClassFqn() {
+                return classFqn;
+            }
+        };
+    }
+
+    /**
+     * 收集使用的方法名稱
+     */
+    private Set<String> collectUsedMethodNames(String classFqn, CodeExtractionRequest request) {
+        Set<String> usedMethodNames = new HashSet<>();
+
+        // 從AST資料中獲取方法資訊
+        FileAstData astData = astIndex.getAstDataByClassFqn(classFqn);
+        if (astData != null && astData.getSequenceDiagramData() != null &&
+                astData.getSequenceDiagramData().getMethodGroups() != null) {
+
+            for (MethodGroup methodGroup : astData.getSequenceDiagramData().getMethodGroups()) {
+                usedMethodNames.add(methodGroup.getMethodName());
+            }
+        }
+
+        return usedMethodNames;
     }
 
     /**

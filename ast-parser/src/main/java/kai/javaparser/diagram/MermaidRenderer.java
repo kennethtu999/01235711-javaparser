@@ -10,7 +10,7 @@ import kai.javaparser.model.TraceResult;
  * Mermaid 渲染器：
  * 負責將 TraceResult 轉換為 Mermaid 序列圖語法字串
  */
-public class MermaidRenderer {
+public class MermaidRenderer implements DiagramRenderer {
     private final SequenceOutputConfig config;
     private MermaidOutput output;
 
@@ -18,6 +18,7 @@ public class MermaidRenderer {
         this.config = config;
     }
 
+    @Override
     public String render(TraceResult traceResult) {
         this.output = new MermaidOutput();
 
@@ -40,6 +41,11 @@ public class MermaidRenderer {
         output.deactivate(entryClassId);
 
         return output.toString();
+    }
+
+    @Override
+    public String getFormatName() {
+        return "Mermaid";
     }
 
     private void renderNode(DiagramNode node, String callerId) {
