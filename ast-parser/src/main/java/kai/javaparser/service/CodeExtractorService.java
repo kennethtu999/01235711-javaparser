@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.diagram.SequenceOutputConfig;
-import kai.javaparser.diagram.SequenceTracer;
 import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.model.FieldInfo;
 import kai.javaparser.model.FileAstData;
@@ -41,10 +40,12 @@ public class CodeExtractorService {
 
     private static final Logger logger = LoggerFactory.getLogger(CodeExtractorService.class);
 
+    private final SequenceTraceService sequenceTraceService;
     private final AstIndex astIndex;
 
     @Autowired
-    public CodeExtractorService(AstIndex astIndex) {
+    public CodeExtractorService(SequenceTraceService sequenceTraceService, AstIndex astIndex) {
+        this.sequenceTraceService = sequenceTraceService;
         this.astIndex = astIndex;
     }
 
@@ -87,15 +88,11 @@ public class CodeExtractorService {
         logger.info("開始代碼提取，進入點: {}", request.getEntryPointMethodFqn());
 
         try {
-            // 1. 初始化 AST 索引
-            // 注意：AstIndex 現在透過依賴注入取得，但需要確保 repository 已正確初始化
-            astIndex.loadOrBuild();
-
-            // 2. 追蹤依賴關係，識別所有涉及的類別
-            Set<String> involvedClasses = traceDependencies(request, astIndex);
+            // 1. 追蹤依賴關係，識別所有涉及的類別
+            Set<String> involvedClasses = traceDependencies(request);
             logger.info("識別到 {} 個相關類別: {}", involvedClasses.size(), involvedClasses);
 
-            // 3. 提取每個類別的原始碼
+            // 2. 提取每個類別的原始碼
             List<ClassSourceCode> classSources;
             if (request.isExtractOnlyUsedMethods()) {
                 logger.info("使用只提取使用的方法模式");
@@ -107,10 +104,10 @@ public class CodeExtractorService {
                 classSources = extractClassSources(involvedClasses, astIndex, request);
             }
 
-            // 4. 合併代碼
+            // 3. 合併代碼
             String mergedCode = mergeSourceCode(classSources, request);
 
-            // 5. 計算統計資訊
+            // 4. 計算統計資訊
             int totalLines = mergedCode.split("\n").length;
 
             return CodeExtractionResult.builder()
@@ -137,21 +134,17 @@ public class CodeExtractorService {
     /**
      * 追蹤依賴關係，識別所有涉及的類別
      */
-    private Set<String> traceDependencies(CodeExtractionRequest request, AstIndex astIndex) {
+    private Set<String> traceDependencies(CodeExtractionRequest request) {
         Set<String> involvedClasses = new HashSet<>();
 
-        // 使用 SequenceTracer 來追蹤方法呼叫
-        SequenceTracer tracer = SequenceTracer.builder()
-                .astIndex(astIndex)
-                .astDir(request.getAstDir())
-                .config(SequenceOutputConfig.builder()
-                        .basePackage(request.getBasePackage())
-                        .depth(request.getMaxDepth())
-                        .build())
+        // 使用 SequenceTraceService 來追蹤方法呼叫
+        SequenceOutputConfig config = SequenceOutputConfig.builder()
+                .basePackage(request.getBasePackage())
+                .depth(request.getMaxDepth())
                 .build();
 
         // 執行追蹤
-        TraceResult traceResult = tracer.trace(request.getEntryPointMethodFqn());
+        TraceResult traceResult = sequenceTraceService.trace(request.getEntryPointMethodFqn(), config);
 
         // 從追蹤結果中提取所有涉及的類別
         extractClassesFromTraceResult(traceResult, involvedClasses);

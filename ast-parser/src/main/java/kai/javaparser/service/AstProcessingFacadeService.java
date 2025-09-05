@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import kai.javaparser.diagram.SequenceOutputConfig;
 import kai.javaparser.diagram.SequenceOutputGenerator;
-import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.model.ProcessRequest;
 
 /**
@@ -33,7 +32,7 @@ public class AstProcessingFacadeService {
     private CodeExtractorService codeExtractorService;
 
     @Autowired
-    private AstIndex astIndex;
+    private SequenceOutputGenerator sequenceOutputGenerator;
 
     /**
      * 統一處理方法
@@ -111,14 +110,8 @@ public class AstProcessingFacadeService {
                 .depth(depth)
                 .build();
 
-        // 創建SequenceOutputGenerator並生成
-        SequenceOutputGenerator generator = SequenceOutputGenerator.builder()
-                .astIndex(astIndex)
-                .astDir(astOutputDir)
-                .config(config)
-                .build();
-
-        String mermaidResult = generator.generate(request.getEntryPointMethodFqn());
+        // 使用注入的SequenceOutputGenerator生成
+        String mermaidResult = sequenceOutputGenerator.generate(request.getEntryPointMethodFqn(), config);
         logger.info("Mermaid序列圖生成完成");
         return mermaidResult;
     }

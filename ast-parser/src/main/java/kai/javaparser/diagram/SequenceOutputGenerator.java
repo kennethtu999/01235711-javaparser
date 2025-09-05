@@ -1,56 +1,40 @@
 package kai.javaparser.diagram;
 
-import java.io.IOException;
-import java.nio.file.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.model.TraceResult;
-import lombok.Builder;
+import kai.javaparser.service.SequenceTraceService;
 
 /**
  * 序列圖生成器（重構後的協調器）：
- * 1. 協調 SequenceTracer 進行方法呼叫追蹤
+ * 1. 協調 SequenceTraceService 進行方法呼叫追蹤
  * 2. 協調 MermaidRenderer 進行 Mermaid 語法生成
  * 3. 提供統一的對外介面
  */
-@Builder
+@Component
 public class SequenceOutputGenerator {
     private static final Logger logger = LoggerFactory.getLogger(SequenceOutputGenerator.class);
 
-    private SequenceOutputConfig config;
-    private String astDir;
-    private AstIndex astIndex;
+    private final SequenceTraceService sequenceTraceService;
 
-    public void startup() {
-        if (astIndex != null) {
-            return;
-        }
-
-        try {
-            // 如果沒有提供 astIndex，則建立一個新的（向後相容）
-            // 注意：這裡需要建立一個臨時的 FileSystemAstRepository
-            kai.javaparser.repository.FileSystemAstRepository repository = new kai.javaparser.repository.FileSystemAstRepository(
-                    Path.of(astDir));
-            astIndex = new AstIndex(repository);
-            astIndex.loadOrBuild();
-        } catch (IOException | ClassNotFoundException e) {
-            throw new RuntimeException("執行期間發生錯誤: " + e.getMessage(), e);
-        }
+    @Autowired
+    public SequenceOutputGenerator(SequenceTraceService sequenceTraceService) {
+        this.sequenceTraceService = sequenceTraceService;
     }
 
-    public String generate(String entryPointMethodFqn) {
-        startup();
-
+    /**
+     * 生成序列圖
+     * 
+     * @param entryPointMethodFqn 進入點方法的完整限定名
+     * @param config              追蹤配置
+     * @return Mermaid 語法字串
+     */
+    public String generate(String entryPointMethodFqn, SequenceOutputConfig config) {
         // 階段一：追蹤並建立呼叫樹
-        SequenceTracer tracer = SequenceTracer.builder()
-                .astIndex(astIndex)
-                .astDir(astDir)
-                .config(config)
-                .build();
-        TraceResult traceResult = tracer.trace(entryPointMethodFqn);
+        TraceResult traceResult = sequenceTraceService.trace(entryPointMethodFqn, config);
 
         // 階段二：渲染呼叫樹
         MermaidRenderer renderer = new MermaidRenderer(config);
