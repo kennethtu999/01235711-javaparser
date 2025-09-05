@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -16,6 +17,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import kai.javaparser.AstExtractor;
@@ -164,5 +166,46 @@ public class AstParserService {
         String javaLevel = JavaCore.VERSION_17;
 
         return executeAstParsing(baseFolder, sourceRoot, outputDir, classpath, javaLevel);
+    }
+
+    /**
+     * 非同步執行AST解析
+     * 
+     * @param baseFolder          基礎文件夾
+     * @param sourceRootDirsArg   源碼根目錄（逗號分隔）
+     * @param outputBaseDir       輸出目錄
+     * @param classpathArg        類路徑（逗號分隔）
+     * @param javaComplianceLevel Java合規性級別
+     * @return 解析結果的CompletableFuture
+     */
+    @Async
+    public CompletableFuture<String> executeAstParsingAsync(String baseFolder, String sourceRootDirsArg,
+            String outputBaseDir, String classpathArg, String javaComplianceLevel) {
+        try {
+            String result = executeAstParsing(baseFolder, sourceRootDirsArg, outputBaseDir, classpathArg,
+                    javaComplianceLevel);
+            return CompletableFuture.completedFuture(result);
+        } catch (Exception e) {
+            logger.error("非同步AST解析失敗", e);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * 非同步簡化版本的AST解析，使用默認參數
+     * 
+     * @param sourceRoot 源碼根目錄
+     * @param outputDir  輸出目錄
+     * @return 解析結果的CompletableFuture
+     */
+    @Async
+    public CompletableFuture<String> parseSourceDirectoryAsync(String sourceRoot, String outputDir) {
+        try {
+            String result = parseSourceDirectory(sourceRoot, outputDir);
+            return CompletableFuture.completedFuture(result);
+        } catch (Exception e) {
+            logger.error("非同步源碼目錄解析失敗", e);
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }
