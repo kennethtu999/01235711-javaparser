@@ -41,23 +41,4 @@ public class MethodGroup {
         this.controlFlowFragments.add(fragment);
     }
 
-    /**
-     * 獲取方法的行數範圍描述
-     */
-    public String getLineRangeDescription() {
-        return "lines " + startLineNumber + "-" + endLineNumber;
-    }
-
-    /**
-     * 獲取完整的方法描述
-     */
-    public String getFullDescription() {
-        StringBuilder desc = new StringBuilder();
-        desc.append(className).append(".").append(methodName);
-        if (methodSignature != null && !methodSignature.isEmpty()) {
-            desc.append("(").append(methodSignature).append(")");
-        }
-        desc.append(" [").append(getLineRangeDescription()).append("]");
-        return desc.toString();
-    }
 }

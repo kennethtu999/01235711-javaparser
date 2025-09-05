@@ -30,7 +30,7 @@ public class MermaidGeneratorTest extends BaseTest {
    */
   @Test
   void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
-    Path resourcePath = Paths.get("build/parsed-ast");
+    Path resourcePath = Paths.get(PARSED_AST_DIR);
     String methodSignature = "com.example.case2.LoginUser.getLevel1()";
     String basePackage = "com.example";
 

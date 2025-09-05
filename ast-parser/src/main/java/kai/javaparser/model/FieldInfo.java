@@ -29,30 +29,4 @@ public class FieldInfo {
         this.endLineNumber = endLineNumber;
     }
 
-    /**
-     * 獲取屬性的行數範圍描述
-     */
-    public String getLineRangeDescription() {
-        return "lines " + startLineNumber + "-" + endLineNumber;
-    }
-
-    /**
-     * 獲取完整的屬性描述
-     */
-    public String getFullDescription() {
-        StringBuilder sb = new StringBuilder();
-        if (modifiers != null && !modifiers.isEmpty()) {
-            sb.append(modifiers).append(" ");
-        }
-        if (fieldType != null) {
-            sb.append(fieldType).append(" ");
-        }
-        if (fieldName != null) {
-            sb.append(fieldName);
-        }
-        if (defaultValue != null && !defaultValue.isEmpty()) {
-            sb.append(" = ").append(defaultValue);
-        }
-        return sb.toString();
-    }
 }

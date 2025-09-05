@@ -55,16 +55,11 @@ public class AstIndex {
      */
     public void loadOrBuild() throws IOException, ClassNotFoundException {
         if (isValidCacheFile(cacheFilePath)) {
-            System.out.println("偵測到索引快取檔案，正在載入...");
             loadFromCache();
-            System.out.println("索引載入完成。");
         } else {
-            System.out.println("未找到索引快取，正在從 JSON 檔案建立索引...");
             buildFromFileSystem();
             saveToCache();
-            System.out.println("索引建立並快取完成。");
         }
-        System.out.println("索引中包含 " + classToPathIndex.size() + " 個類別。");
     }
 
     private boolean isValidCacheFile(Path cacheFilePath) {

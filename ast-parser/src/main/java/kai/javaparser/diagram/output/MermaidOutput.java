@@ -177,7 +177,6 @@ public class MermaidOutput {
         otherItems = fixDiagram(otherItems);
         for (AbstractMermaidItem item : otherItems) {
             result.append(item.toDiagramString(indentLevel)).append("\n");
-            // System.out.println(indentLevel + " " + item.getClass().getSimpleName());
 
             if (item instanceof MermailActivate && ((MermailActivate) item).isActivate()) {
                 indentLevel += 1;

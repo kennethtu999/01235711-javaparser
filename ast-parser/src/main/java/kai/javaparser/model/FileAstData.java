@@ -58,7 +58,7 @@ public class FileAstData implements Serializable {
     }
 
     /**
-     * TODO 根據方法的完整限定名 (FQN) 尋找對應的方法宣告節點。
+     * 根據方法的完整限定名 (FQN) 尋找對應的方法宣告節點。
      *
      * @param methodFqn 方法的 FQN，例如 "com.example.MyClass.myMethod(int)"
      * @return 包含方法 AST 節點的 Optional，如果找不到則為空。
@@ -67,16 +67,9 @@ public class FileAstData implements Serializable {
         String methodSignature = AstClassUtil.getMethodSignature(methodFqn);
         String simpleMethodName = methodSignature.split("\\(")[0];
 
-        System.out.println("尋找方法: " + methodFqn);
-        System.out.println("方法簽名: " + methodSignature);
-        System.out.println("簡單方法名: " + simpleMethodName);
-
         if (sequenceDiagramData != null && sequenceDiagramData.getMethodGroups() != null) {
-            System.out.println("找到 " + sequenceDiagramData.getMethodGroups().size() + " 個方法組");
             for (MethodGroup group : sequenceDiagramData.getMethodGroups()) {
-                System.out.println("檢查方法組: " + group.getMethodName() + " vs " + simpleMethodName);
                 if (simpleMethodName.equals(group.getMethodName())) {
-                    System.out.println("找到匹配的方法: " + group.getMethodName());
                     // 創建一個新的 SequenceDiagramData 來代表這個方法
                     SequenceDiagramData methodData = new SequenceDiagramData();
                     methodData.setClassFqn(group.getFullMethodName());
@@ -84,8 +77,6 @@ public class FileAstData implements Serializable {
                     return Optional.of(methodData);
                 }
             }
-        } else {
-            System.out.println("sequenceDiagramData 或 methodGroups 為 null");
         }
         return Optional.empty();
     }

@@ -10,6 +10,8 @@ import java.nio.file.Paths;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import kai.javaparser.service.AstParserService;
+
 public class BaseTest {
   public static final String PARSED_AST_DIR = "parsed-ast";
 
@@ -18,25 +20,22 @@ public class BaseTest {
     // Locate the test-project subproject relative to the current project
     Path currentProjectDir = Paths.get("").toAbsolutePath();
 
-    // if existed, do nothing and return
     if (Files.exists(currentProjectDir.resolve(PARSED_AST_DIR))) {
-      return;
+      deleteDirectory(currentProjectDir.resolve(PARSED_AST_DIR).toFile());
+
     }
 
     Path testProjectRoot = Paths.get(currentProjectDir.toString() + "/../test-project");
 
-    // remove the build directory
-    deleteDirectory(currentProjectDir.resolve(PARSED_AST_DIR).toFile());
-
     assertTrue(Files.exists(testProjectRoot) && Files.isDirectory(testProjectRoot));
 
     String outputDirArg = currentProjectDir.resolve(PARSED_AST_DIR).toAbsolutePath().toString();
-    String javaComplianceLevel = "8";
 
-    String[] args = { testProjectRoot.toString(), outputDirArg, javaComplianceLevel };
+    System.out.println("Running AstParserService for test project: " + testProjectRoot);
 
-    System.out.println("Running AstParserLauncher with args: " + String.join(" ", args));
-    AstParserLauncher.main(args);
+    AstParserService astParserService = new AstParserService();
+    String result = astParserService.parseSourceDirectory(testProjectRoot.toString(), outputDirArg);
+    System.out.println("AST parsing result: " + result);
   }
 
   @AfterEach
