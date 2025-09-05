@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import kai.javaparser.repository.FileSystemAstRepository;
 import kai.javaparser.service.AstParserService;
 
 public class BaseTest {
@@ -33,7 +34,9 @@ public class BaseTest {
 
     System.out.println("Running AstParserService for test project: " + testProjectRoot);
 
-    AstParserService astParserService = new AstParserService();
+    // 建立測試用的 repository
+    FileSystemAstRepository repository = new FileSystemAstRepository(Paths.get(outputDirArg));
+    AstParserService astParserService = new AstParserService(repository);
     String result = astParserService.parseSourceDirectory(testProjectRoot.toString(), outputDirArg);
     System.out.println("AST parsing result: " + result);
   }

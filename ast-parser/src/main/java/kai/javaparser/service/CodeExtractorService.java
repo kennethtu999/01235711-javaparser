@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import kai.javaparser.diagram.AstClassUtil;
@@ -39,6 +40,13 @@ import lombok.Getter;
 public class CodeExtractorService {
 
     private static final Logger logger = LoggerFactory.getLogger(CodeExtractorService.class);
+
+    private final AstIndex astIndex;
+
+    @Autowired
+    public CodeExtractorService(AstIndex astIndex) {
+        this.astIndex = astIndex;
+    }
 
     /**
      * 代碼提取請求
@@ -80,7 +88,7 @@ public class CodeExtractorService {
 
         try {
             // 1. 初始化 AST 索引
-            AstIndex astIndex = new AstIndex(Path.of(request.getAstDir()));
+            // 注意：AstIndex 現在透過依賴注入取得，但需要確保 repository 已正確初始化
             astIndex.loadOrBuild();
 
             // 2. 追蹤依賴關係，識別所有涉及的類別
@@ -134,6 +142,7 @@ public class CodeExtractorService {
 
         // 使用 SequenceTracer 來追蹤方法呼叫
         SequenceTracer tracer = SequenceTracer.builder()
+                .astIndex(astIndex)
                 .astDir(request.getAstDir())
                 .config(SequenceOutputConfig.builder()
                         .basePackage(request.getBasePackage())

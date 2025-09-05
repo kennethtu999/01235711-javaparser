@@ -47,7 +47,11 @@ public class SequenceTracer {
         }
 
         try {
-            astIndex = new AstIndex(Path.of(astDir));
+            // 如果沒有提供 astIndex，則建立一個新的（向後相容）
+            // 注意：這裡需要建立一個臨時的 FileSystemAstRepository
+            kai.javaparser.repository.FileSystemAstRepository repository = new kai.javaparser.repository.FileSystemAstRepository(
+                    Path.of(astDir));
+            astIndex = new AstIndex(repository);
             astIndex.loadOrBuild();
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException("執行期間發生錯誤: " + e.getMessage(), e);

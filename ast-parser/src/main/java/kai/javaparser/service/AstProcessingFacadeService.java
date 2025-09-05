@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import kai.javaparser.diagram.SequenceOutputConfig;
 import kai.javaparser.diagram.SequenceOutputGenerator;
+import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.model.ProcessRequest;
 
 /**
@@ -30,6 +31,9 @@ public class AstProcessingFacadeService {
 
     @Autowired
     private CodeExtractorService codeExtractorService;
+
+    @Autowired
+    private AstIndex astIndex;
 
     /**
      * 統一處理方法
@@ -109,6 +113,7 @@ public class AstProcessingFacadeService {
 
         // 創建SequenceOutputGenerator並生成
         SequenceOutputGenerator generator = SequenceOutputGenerator.builder()
+                .astIndex(astIndex)
                 .astDir(astOutputDir)
                 .config(config)
                 .build();

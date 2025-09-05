@@ -15,10 +15,12 @@ import java.util.stream.Stream;
 import org.eclipse.jdt.core.JavaCore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import kai.javaparser.AstExtractor;
-import kai.javaparser.util.Util;
+import kai.javaparser.repository.AstRepository;
+import kai.javaparser.repository.FileSystemAstRepository;
 
 /**
  * AST解析服務類
@@ -28,6 +30,13 @@ import kai.javaparser.util.Util;
 public class AstParserService {
 
     private static final Logger logger = LoggerFactory.getLogger(AstParserService.class);
+
+    private final AstRepository astRepository;
+
+    @Autowired
+    public AstParserService(AstRepository astRepository) {
+        this.astRepository = astRepository;
+    }
 
     /**
      * 執行AST解析
@@ -78,6 +87,10 @@ public class AstParserService {
 
         try {
             Files.createDirectories(outputBaseDir0);
+            // 初始化 repository 的輸出目錄
+            if (astRepository instanceof FileSystemAstRepository) {
+                ((FileSystemAstRepository) astRepository).initialize(outputBaseDir0);
+            }
         } catch (IOException e) {
             logger.error("Could not create output directory {}: {}", outputBaseDir0, e.getMessage());
             return "Error: Could not create output directory: " + e.getMessage();
@@ -107,22 +120,21 @@ public class AstParserService {
                                 Path relativePath = sourceRoot.relativize(Paths.get(fileAstData.getAbsolutePath()));
                                 fileAstData.setRelativePath(relativePath.toString());
 
-                                // Construct a unique output filename
-                                Path outputFile0 = outputBaseDir0.resolve(uniquePrefix)
-                                        .resolve(relativePath.toString());
-                                Path outputFile = outputBaseDir0.resolve(uniquePrefix)
-                                        .resolve(relativePath.toString().replace(".java", ".json"));
                                 try {
-                                    Files.createDirectories(outputFile.getParent());
-                                    Util.writeJson(outputFile, fileAstData);
+                                    // 使用 repository 儲存 AST 資料
+                                    astRepository.save(fileAstData);
 
+                                    // 同時儲存原始碼檔案（保持向後相容性）
+                                    Path outputFile0 = outputBaseDir0.resolve(uniquePrefix)
+                                            .resolve(relativePath.toString());
+                                    Files.createDirectories(outputFile0.getParent());
                                     Files.writeString(outputFile0, new String(fileAstData.getFileContent()),
                                             Charset.forName("UTF-8"));
 
                                     processedFiles[0]++;
 
                                 } catch (IOException e) {
-                                    logger.error("Error writing AST to {}: {}", outputFile, e.getMessage());
+                                    logger.error("Error saving AST data: {}", e.getMessage());
                                 }
                             }
                         });
