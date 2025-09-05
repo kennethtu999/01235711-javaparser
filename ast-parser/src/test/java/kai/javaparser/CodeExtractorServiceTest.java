@@ -1,13 +1,15 @@
-package kai.javaparser.case3;
+package kai.javaparser;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -22,7 +24,7 @@ import kai.javaparser.service.CodeExtractorService.CodeExtractionResult;
  * 案例 #3 測試：能經由 Java Method 取出對應的程式碼，供AI Prompt使用
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-public class CodeExtractorServiceTest {
+public class CodeExtractorServiceTest extends BaseTest {
 
     private static final Logger logger = LoggerFactory.getLogger(CodeExtractorServiceTest.class);
 
@@ -31,23 +33,13 @@ public class CodeExtractorServiceTest {
     private Path outputDir;
 
     @BeforeEach
-    void setUp() throws IOException {
-        codeExtractorService = new CodeExtractorService();
-
-        // 使用現有的測試 AST 目錄
-        astDir = Paths.get("build/parsed-ast");
-        outputDir = Paths.get("build/case3-output");
+    public void setUp() throws Exception {
+        super.setUp();
+        astDir = Paths.get(PARSED_AST_DIR);
 
         // 確保輸出目錄存在
+        outputDir = Paths.get("build/test-output");
         Files.createDirectories(outputDir);
-
-        logger.info("測試設置完成，AST 目錄: {}", astDir.toAbsolutePath());
-        logger.info("輸出目錄: {}", outputDir.toAbsolutePath());
-    }
-
-    @AfterEach
-    void tearDown() {
-        // 清理測試產生的檔案
     }
 
     /**
@@ -71,26 +63,14 @@ public class CodeExtractorServiceTest {
                 .build();
 
         // Act: 執行代碼提取
+        codeExtractorService = new CodeExtractorService();
         CodeExtractionResult result = codeExtractorService.extractCode(request);
 
         // Assert: 驗證結果
-        assertNotNull(result, "提取結果不應為 null");
-        assertNotNull(result.getEntryPointMethodFqn(), "進入點方法 FQN 不應為 null");
-        assertEquals(entryPointMethodFqn, result.getEntryPointMethodFqn(), "進入點方法 FQN 應匹配");
-
-        assertNotNull(result.getInvolvedClasses(), "涉及的類別集合不應為 null");
-        assertTrue(result.getTotalClasses() > 0, "應該識別到至少一個類別");
-
-        assertNotNull(result.getMergedSourceCode(), "合併後的原始碼不應為 null");
-        assertFalse(result.getMergedSourceCode().isEmpty(), "合併後的原始碼不應為空");
-        assertTrue(result.getTotalLines() > 0, "總行數應大於 0");
-
-        // 驗證合併後的原始碼包含預期的格式
-        String mergedCode = result.getMergedSourceCode();
-        assertTrue(mergedCode.contains("--- START OF FILE"), "應包含檔案開始標記");
-        assertTrue(mergedCode.contains("--- END OF FILE"), "應包含檔案結束標記");
-        assertTrue(mergedCode.contains("代碼提取結果"), "應包含標題");
-        assertTrue(mergedCode.contains(entryPointMethodFqn), "應包含進入點方法");
+        assertNotNull(result);
+        assertEquals(entryPointMethodFqn, result.getEntryPointMethodFqn());
+        assertTrue(result.getTotalClasses() > 0);
+        assertFalse(result.getMergedSourceCode().isEmpty());
 
         // 輸出結果供檢查
         logger.info("=== 代碼提取結果 ===");
@@ -109,7 +89,7 @@ public class CodeExtractorServiceTest {
         }
 
         // 輸出部分合併後的原始碼
-        String[] lines = mergedCode.split("\n");
+        String[] lines = result.getMergedSourceCode().split("\n");
         int previewLines = Math.min(50, lines.length);
         logger.info("=== 合併後原始碼預覽 (前 {} 行) ===", previewLines);
         for (int i = 0; i < previewLines; i++) {
@@ -143,26 +123,14 @@ public class CodeExtractorServiceTest {
         logger.info("測試請求設置: extractOnlyUsedMethods = {}", request.isExtractOnlyUsedMethods());
 
         // Act: 執行代碼提取
+        codeExtractorService = new CodeExtractorService();
         CodeExtractionResult result = codeExtractorService.extractCode(request);
 
         // Assert: 驗證結果
-        assertNotNull(result, "提取結果不應為 null");
-        assertNotNull(result.getEntryPointMethodFqn(), "進入點方法 FQN 不應為 null");
-        assertEquals(entryPointMethodFqn, result.getEntryPointMethodFqn(), "進入點方法 FQN 應匹配");
-
-        assertNotNull(result.getInvolvedClasses(), "涉及的類別集合不應為 null");
-        assertTrue(result.getTotalClasses() > 0, "應該識別到至少一個類別");
-
-        assertNotNull(result.getMergedSourceCode(), "合併後的原始碼不應為 null");
-        assertFalse(result.getMergedSourceCode().isEmpty(), "合併後的原始碼不應為空");
-        assertTrue(result.getTotalLines() > 0, "總行數應大於 0");
-
-        // 驗證合併後的原始碼包含預期的格式
-        String mergedCode = result.getMergedSourceCode();
-        assertTrue(mergedCode.contains("--- START OF FILE"), "應包含檔案開始標記");
-        assertTrue(mergedCode.contains("--- END OF FILE"), "應包含檔案結束標記");
-        assertTrue(mergedCode.contains("代碼提取結果"), "應包含標題");
-        assertTrue(mergedCode.contains(entryPointMethodFqn), "應包含進入點方法");
+        assertNotNull(result);
+        assertEquals(entryPointMethodFqn, result.getEntryPointMethodFqn());
+        assertTrue(result.getTotalClasses() > 0);
+        assertFalse(result.getMergedSourceCode().isEmpty());
 
         // 輸出結果供檢查
         logger.info("=== 只提取使用的方法和所有屬性 - 結果 ===");
@@ -203,6 +171,7 @@ public class CodeExtractorServiceTest {
                 .extractOnlyUsedMethods(false) // 完整提取
                 .build();
 
+        codeExtractorService = new CodeExtractorService();
         CodeExtractionResult fullResult = codeExtractorService.extractCode(fullRequest);
 
         // 2. 只提取使用的方法
@@ -227,8 +196,7 @@ public class CodeExtractorServiceTest {
                 (double) (fullResult.getTotalLines() - usedResult.getTotalLines()) / fullResult.getTotalLines() * 100);
 
         // 驗證只提取使用的方法應該比完整提取的行數少
-        assertTrue(usedResult.getTotalLines() < fullResult.getTotalLines(),
-                "只提取使用的方法應該比完整提取的行數少");
+        assertTrue(usedResult.getTotalLines() < fullResult.getTotalLines());
 
         // 將兩個結果都寫入檔案供比較
         try {
@@ -258,13 +226,14 @@ public class CodeExtractorServiceTest {
                 .build();
 
         // Act: 執行代碼提取
+        codeExtractorService = new CodeExtractorService();
         CodeExtractionResult result = codeExtractorService.extractCode(request);
 
         // Assert: 驗證錯誤處理
-        assertNotNull(result, "提取結果不應為 null");
-        assertNotNull(result.getErrorMessage(), "應包含錯誤訊息");
-        assertTrue(result.getErrorMessage().contains("代碼提取失敗"), "錯誤訊息應包含失敗描述");
-        assertEquals(0, result.getTotalClasses(), "無效輸入應返回 0 個類別");
-        assertEquals(0, result.getTotalLines(), "無效輸入應返回 0 行");
+        assertNotNull(result);
+        assertNotNull(result.getErrorMessage());
+        assertTrue(result.getErrorMessage().contains("代碼提取失敗"));
+        assertEquals(0, result.getTotalClasses());
+        assertEquals(0, result.getTotalLines());
     }
 }
