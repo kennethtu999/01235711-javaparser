@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.model.FieldInfo;
 import kai.javaparser.model.FileAstData;
@@ -113,14 +114,17 @@ public class JdtBasedSourceCodeWeaver implements SourceCodeWeaver {
         // 獲取使用的方法的行號
         Set<Integer> usedMethodLines = getUsedMethodLines(astData, rules);
 
+        // 獲取構造函數的行號（如果規則允許）
+        Set<Integer> constructorLines = new HashSet<>();
+        if (rules.includeConstructors()) {
+            constructorLines = getConstructorLines(astData);
+        }
+
         // 計算需要保留的所有行號
         Set<Integer> linesToKeep = new HashSet<>();
         linesToKeep.addAll(fieldLines);
         linesToKeep.addAll(usedMethodLines);
-
-        // 添加相關註解和結構行
-        addRelevantComments(linesToKeep, fieldLines, usedMethodLines, lines);
-        addStructuralLines(linesToKeep, lines);
+        linesToKeep.addAll(constructorLines);
 
         // 構建結果
         boolean inClass = false;
@@ -147,12 +151,10 @@ public class JdtBasedSourceCodeWeaver implements SourceCodeWeaver {
             // 只保留計算出需要的行
             if (linesToKeep.contains(i)) {
                 result.append(line).append("\n");
-            } else if (rules.includeComments() && isCommentLine(trimmedLine)) {
-                // 如果包含註解且是註解行，也保留
-                result.append(line).append("\n");
             }
         }
 
+        result.append("}");
         return result.toString();
     }
 
@@ -197,52 +199,29 @@ public class JdtBasedSourceCodeWeaver implements SourceCodeWeaver {
     }
 
     /**
-     * 為屬性和方法添加相關註解和空白行
+     * 獲取構造函數的行號
      */
-    private void addRelevantComments(Set<Integer> linesToKeep, Set<Integer> fieldLines,
-            Set<Integer> usedMethodLines, String[] lines) {
+    private Set<Integer> getConstructorLines(FileAstData astData) {
+        Set<Integer> constructorLines = new HashSet<>();
 
-        // 為每個屬性添加前面的註解和空白行（最多2行）
-        for (Integer fieldLine : fieldLines) {
-            for (int i = Math.max(0, fieldLine - 2); i < fieldLine; i++) {
-                String trimmedLine = lines[i].trim();
-                if (trimmedLine.startsWith("//") || trimmedLine.startsWith("/*") ||
-                        trimmedLine.startsWith("*") || trimmedLine.isEmpty()) {
-                    linesToKeep.add(i);
+        if (astData.getSequenceDiagramData() != null &&
+                astData.getSequenceDiagramData().getMethodGroups() != null) {
+
+            for (MethodGroup methodGroup : astData.getSequenceDiagramData().getMethodGroups()) {
+                // 檢查是否為構造函數（方法名與類名相同）
+                String methodName = methodGroup.getMethodName();
+                String className = AstClassUtil.getSimpleClassName(methodGroup.getClassName());
+
+                if (methodName != null && className != null && methodName.equals(className)) {
+                    for (int i = methodGroup.getStartLineNumber() - 1; i < methodGroup.getEndLineNumber(); i++) {
+                        if (i >= 0) {
+                            constructorLines.add(i);
+                        }
+                    }
                 }
             }
         }
-
-        // 為每個方法添加前面的註解和空白行（最多3行）
-        for (Integer methodLine : usedMethodLines) {
-            for (int i = Math.max(0, methodLine - 3); i < methodLine; i++) {
-                String trimmedLine = lines[i].trim();
-                if (trimmedLine.startsWith("//") || trimmedLine.startsWith("/*") ||
-                        trimmedLine.startsWith("*") || trimmedLine.startsWith("@") ||
-                        trimmedLine.isEmpty()) {
-                    linesToKeep.add(i);
-                }
-            }
-        }
-    }
-
-    /**
-     * 添加必要的結構行（類別結尾等）
-     */
-    private void addStructuralLines(Set<Integer> linesToKeep, String[] lines) {
-        // 找到類別的最後一行
-        int lastClassLine = -1;
-        for (int i = 0; i < lines.length; i++) {
-            String trimmedLine = lines[i].trim();
-            if (trimmedLine.equals("}") && lastClassLine == -1) {
-                // 簡單的類別結尾檢測
-                lastClassLine = i;
-            }
-        }
-
-        if (lastClassLine >= 0) {
-            linesToKeep.add(lastClassLine);
-        }
+        return constructorLines;
     }
 
     /**

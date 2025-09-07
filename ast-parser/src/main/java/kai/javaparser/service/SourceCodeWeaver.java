@@ -28,6 +28,11 @@ public interface SourceCodeWeaver {
         boolean extractOnlyUsedMethods();
 
         /**
+         * 是否包含構造函數
+         */
+        boolean includeConstructors();
+
+        /**
          * 要提取的方法名稱集合（當extractOnlyUsedMethods為true時使用）
          */
         Set<String> getUsedMethodNames();

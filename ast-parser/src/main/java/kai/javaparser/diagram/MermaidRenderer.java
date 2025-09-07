@@ -1,8 +1,13 @@
 package kai.javaparser.diagram;
 
+import java.util.List;
+
+import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.diagram.output.MermaidOutput;
+import kai.javaparser.model.AnnotationInfo;
 import kai.javaparser.model.ControlFlowFragment;
 import kai.javaparser.model.DiagramNode;
+import kai.javaparser.model.FileAstData;
 import kai.javaparser.model.InteractionModel;
 import kai.javaparser.model.TraceResult;
 
@@ -12,10 +17,17 @@ import kai.javaparser.model.TraceResult;
  */
 public class MermaidRenderer implements DiagramRenderer {
     private final SequenceOutputConfig config;
+    private final AstIndex astIndex;
     private MermaidOutput output;
 
     public MermaidRenderer(SequenceOutputConfig config) {
         this.config = config;
+        this.astIndex = null; // 向後兼容
+    }
+
+    public MermaidRenderer(SequenceOutputConfig config, AstIndex astIndex) {
+        this.config = config;
+        this.astIndex = astIndex;
     }
 
     @Override
@@ -29,6 +41,9 @@ public class MermaidRenderer implements DiagramRenderer {
                 "\\(.*",
                 "");
         String entryClassId = AstClassUtil.safeMermaidId(entryClassFqn);
+
+        // 添加類別註解信息
+        renderClassAnnotations(traceResult, entryClassId);
 
         output.addEntryPointCall("User", entryClassId, methodSignature);
         output.activate(entryClassId);
@@ -46,6 +61,99 @@ public class MermaidRenderer implements DiagramRenderer {
     @Override
     public String getFormatName() {
         return "Mermaid";
+    }
+
+    /**
+     * 渲染類別註解信息
+     */
+    private void renderClassAnnotations(TraceResult traceResult, String classId) {
+        if (astIndex == null) {
+            // 如果沒有 AstIndex，跳過類別註解渲染
+            return;
+        }
+
+        try {
+            // 從 entryPointMethodFqn 獲取類別 FQN
+            String classFqn = AstClassUtil.getClassFqnFromMethodFqn(traceResult.getEntryPointMethodFqn());
+
+            // 通過 AstIndex 獲取類別的 AST 數據
+            FileAstData fileAstData = astIndex.getAstDataByClassFqn(classFqn);
+            if (fileAstData != null && fileAstData.getSequenceDiagramData() != null) {
+                List<AnnotationInfo> classAnnotations = fileAstData.getSequenceDiagramData().getClassAnnotations();
+                if (classAnnotations != null && !classAnnotations.isEmpty()) {
+                    renderAnnotations(classAnnotations, classId);
+                }
+            }
+
+        } catch (Exception e) {
+            // 靜默處理錯誤，不影響圖表生成
+            System.err.println("渲染類別註解時發生錯誤: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 渲染方法註解信息
+     */
+    private void renderMethodAnnotations(String classFqn, String methodName, String participantId) {
+        if (astIndex == null) {
+            // 如果沒有 AstIndex，跳過方法註解渲染
+            return;
+        }
+
+        try {
+            // 通過 AstIndex 獲取類別的 AST 數據
+            FileAstData fileAstData = astIndex.getAstDataByClassFqn(classFqn);
+            if (fileAstData != null && fileAstData.getSequenceDiagramData() != null) {
+                // 查找對應的方法分組
+                var methodGroup = fileAstData.getSequenceDiagramData().findMethodGroup(methodName);
+                if (methodGroup != null && methodGroup.getAnnotations() != null
+                        && !methodGroup.getAnnotations().isEmpty()) {
+                    renderAnnotations(methodGroup.getAnnotations(), participantId);
+                }
+            }
+
+        } catch (Exception e) {
+            // 靜默處理錯誤，不影響圖表生成
+            System.err.println("渲染方法註解時發生錯誤: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 渲染註解信息為 Mermaid 註解
+     */
+    private void renderAnnotations(List<AnnotationInfo> annotations, String participantId) {
+        if (annotations == null || annotations.isEmpty()) {
+            return;
+        }
+
+        StringBuilder annotationText = new StringBuilder();
+        for (int i = 0; i < annotations.size(); i++) {
+            AnnotationInfo annotation = annotations.get(i);
+            if (i > 0) {
+                annotationText.append(", ");
+            }
+            annotationText.append("@").append(annotation.getSimpleName());
+
+            // 添加註解參數
+            if (annotation.getParameters() != null && !annotation.getParameters().isEmpty()) {
+                annotationText.append("(");
+                for (int j = 0; j < annotation.getParameters().size(); j++) {
+                    AnnotationInfo.AnnotationParameter param = annotation.getParameters().get(j);
+                    if (j > 0) {
+                        annotationText.append(", ");
+                    }
+                    if (param.getParameterName() != null) {
+                        annotationText.append(param.getParameterName()).append("=");
+                    }
+                    annotationText.append(param.getParameterValue());
+                }
+                annotationText.append(")");
+            }
+        }
+
+        if (annotationText.length() > 0) {
+            output.addNote(participantId, annotationText.toString());
+        }
     }
 
     private void renderNode(DiagramNode node, String callerId) {
@@ -74,6 +182,10 @@ public class MermaidRenderer implements DiagramRenderer {
         // 只有在未被過濾器排除的情況下才渲染此交互
         if (!config.getFilter().shouldExclude(calleeClassFqn, interaction.getMethodName(), null)) {
             output.addParticipant(calleeId, calleeClassFqn);
+
+            // 渲染方法註解（如果有的話）
+            renderMethodAnnotations(calleeClassFqn, interaction.getMethodName(), calleeId);
+
             output.addCall(callerId, calleeId, interaction.getMethodName(),
                     interaction.getArguments(), interaction.getAssignedToVariable(), isConditionEvaluation,
                     interaction.getReturnValue());
@@ -108,6 +220,10 @@ public class MermaidRenderer implements DiagramRenderer {
         // 只有在未被過濾器排除的情況下才渲染此交互
         if (!config.getFilter().shouldExclude(calleeClassFqn, interaction.getMethodName(), null)) {
             output.addParticipant(calleeId, calleeClassFqn);
+
+            // 渲染方法註解（如果有的話）
+            renderMethodAnnotations(calleeClassFqn, interaction.getMethodName(), calleeId);
+
             output.addCall(callerId, calleeId, interaction.getMethodName(),
                     interaction.getArguments(), interaction.getAssignedToVariable(), isConditionEvaluation,
                     interaction.getReturnValue());

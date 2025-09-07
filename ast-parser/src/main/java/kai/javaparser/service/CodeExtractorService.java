@@ -1,6 +1,7 @@
 package kai.javaparser.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ import kai.javaparser.model.InteractionModel;
 import kai.javaparser.model.MethodGroup;
 import kai.javaparser.model.TraceResult;
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 
 /**
@@ -64,6 +66,7 @@ public class CodeExtractorService {
         private boolean includeImports; // 是否包含 import 語句
         private boolean includeComments; // 是否包含註解
         private boolean extractOnlyUsedMethods; // 是否只提取實際使用的方法（但包含所有屬性）
+        private boolean includeConstructors; // 是否包含構造函數
     }
 
     /**
@@ -91,17 +94,23 @@ public class CodeExtractorService {
 
         try {
             // 1. 追蹤依賴關係，識別所有涉及的類別
-            Set<String> involvedClasses = traceDependencies(request);
-            logger.info("識別到 {} 個相關類別: {}", involvedClasses.size(), involvedClasses);
+            Set<String> involvedMethodFqns = traceDependencies(request);
+            logger.info("識別到 {} 個相關方法: {}", involvedMethodFqns.size(), involvedMethodFqns);
 
             // 2. 使用新的抽象層提取原始碼
-            List<ClassSourceCode> classSources = extractClassSourcesWithNewAbstractions(involvedClasses, request);
+            List<ClassSourceCode> classSources = extractClassSourcesWithNewAbstractions(involvedMethodFqns, request);
 
             // 3. 合併代碼
             String mergedCode = mergeSourceCode(classSources, request);
 
             // 4. 計算統計資訊
             int totalLines = mergedCode.split("\n").length;
+
+            // 5. 提取涉及的類別FQN
+            Set<String> involvedClasses = new HashSet<>();
+            for (ClassSourceCode classSource : classSources) {
+                involvedClasses.add(classSource.getClassFqn());
+            }
 
             return CodeExtractionResult.builder()
                     .entryPointMethodFqn(request.getEntryPointMethodFqn())
@@ -128,7 +137,7 @@ public class CodeExtractorService {
      * 追蹤依賴關係，識別所有涉及的類別
      */
     private Set<String> traceDependencies(CodeExtractionRequest request) {
-        Set<String> involvedClasses = new HashSet<>();
+        Set<String> involvedMethodFqns = new HashSet<>();
 
         // 使用 SequenceTraceService 來追蹤方法呼叫
         SequenceOutputConfig config = SequenceOutputConfig.builder()
@@ -140,41 +149,47 @@ public class CodeExtractorService {
         TraceResult traceResult = sequenceTraceService.trace(request.getEntryPointMethodFqn(), config);
 
         // 從追蹤結果中提取所有涉及的類別
-        extractClassesFromTraceResult(traceResult, involvedClasses);
+        extractClassesFromTraceResult(traceResult, involvedMethodFqns);
 
         // 確保進入點方法的類別也被包含
-        String entryPointClass = AstClassUtil.getClassFqnFromMethodFqn(request.getEntryPointMethodFqn());
-        if (!entryPointClass.isEmpty()) {
-            involvedClasses.add(entryPointClass);
-        }
+        involvedMethodFqns.add(request.getEntryPointMethodFqn());
 
-        return involvedClasses;
+        return involvedMethodFqns;
     }
 
     /**
      * 使用新的抽象層提取類別原始碼
      */
-    private List<ClassSourceCode> extractClassSourcesWithNewAbstractions(Set<String> classFqns,
+    private List<ClassSourceCode> extractClassSourcesWithNewAbstractions(Set<String> methodFqns,
             CodeExtractionRequest request) {
         logger.info("使用新的抽象層提取原始碼，提供者: {}, 編織器: {}",
                 sourceProvider.getProviderName(), sourceCodeWeaver.getWeaverName());
 
         List<ClassSourceCode> classSources = new ArrayList<>();
 
-        // 1. 使用SourceProvider獲取原始碼
-        Map<String, String> sourceCodes = sourceProvider.getSourceCodes(classFqns);
+        // 1. Group method FQNs by class FQN
+        Map<String, Set<String>> classToMethodsMap = groupMethodsByClass(methodFqns);
+        logger.info("分組結果: {} 個類別", classToMethodsMap.size());
 
-        for (String classFqn : classFqns) {
-            String sourceCode = sourceCodes.get(classFqn);
+        // 2. Process each class
+        for (Map.Entry<String, Set<String>> entry : classToMethodsMap.entrySet()) {
+            String classFqn = entry.getKey();
+            Set<String> classMethods = entry.getValue();
+
+            logger.debug("處理類別: {} 包含 {} 個方法", classFqn, classMethods.size());
+
+            // 3. 使用SourceProvider獲取原始碼
+            String sourceCode = sourceProvider.getSourceCode(classFqn);
+
             if (sourceCode == null) {
                 logger.warn("無法獲取類別原始碼: {}", classFqn);
                 continue;
             }
 
-            // 2. 創建編織規則
-            SourceCodeWeaver.WeavingRules rules = createWeavingRules(classFqn, request);
+            // 4. 創建編織規則，傳入該類別的方法集合
+            SourceCodeWeaver.WeavingRules rules = createWeavingRules(classFqn, classMethods, request);
 
-            // 3. 使用SourceCodeWeaver編織原始碼
+            // 5. 使用SourceCodeWeaver編織原始碼
             SourceCodeWeaver.WeavingResult weavingResult = sourceCodeWeaver.weave(sourceCode, rules);
 
             if (!weavingResult.isSuccess()) {
@@ -184,7 +199,7 @@ public class CodeExtractorService {
                 sourceCode = weavingResult.getWovenSourceCode();
             }
 
-            // 4. 創建ClassSourceCode
+            // 6. 創建ClassSourceCode
             String relativePath = classFqn.replace('.', '/') + ".java";
             classSources.add(ClassSourceCode.builder()
                     .classFqn(classFqn)
@@ -199,11 +214,31 @@ public class CodeExtractorService {
     }
 
     /**
+     * 將方法FQN按類別分組
+     */
+    private Map<String, Set<String>> groupMethodsByClass(Set<String> methodFqns) {
+        Map<String, Set<String>> classToMethodsMap = new HashMap<>();
+
+        for (String methodFqn : methodFqns) {
+            String classFqn = AstClassUtil.getClassFqnFromMethodFqn(methodFqn);
+            if (classFqn.isEmpty()) {
+                logger.warn("無法從方法FQN中提取類別FQN: {}", methodFqn);
+                continue;
+            }
+
+            classToMethodsMap.computeIfAbsent(classFqn, k -> new HashSet<>()).add(methodFqn);
+        }
+
+        return classToMethodsMap;
+    }
+
+    /**
      * 創建編織規則
      */
-    private SourceCodeWeaver.WeavingRules createWeavingRules(String classFqn, CodeExtractionRequest request) {
+    private SourceCodeWeaver.WeavingRules createWeavingRules(String classFqn, Set<String> classMethods,
+            CodeExtractionRequest request) {
         // 收集使用的方法名稱
-        Set<String> usedMethodNames = collectUsedMethodNames(classFqn, request);
+        Set<String> usedMethodNames = collectUsedMethodNames(classFqn, classMethods, request);
 
         return new SourceCodeWeaver.WeavingRules() {
             @Override
@@ -222,6 +257,11 @@ public class CodeExtractorService {
             }
 
             @Override
+            public boolean includeConstructors() {
+                return request.isIncludeConstructors();
+            }
+
+            @Override
             public Set<String> getUsedMethodNames() {
                 return usedMethodNames;
             }
@@ -236,16 +276,30 @@ public class CodeExtractorService {
     /**
      * 收集使用的方法名稱
      */
-    private Set<String> collectUsedMethodNames(String classFqn, CodeExtractionRequest request) {
+    private Set<String> collectUsedMethodNames(String classFqn, Set<String> classMethods,
+            CodeExtractionRequest request) {
         Set<String> usedMethodNames = new HashSet<>();
 
-        // 從AST資料中獲取方法資訊
-        FileAstData astData = astIndex.getAstDataByClassFqn(classFqn);
-        if (astData != null && astData.getSequenceDiagramData() != null &&
-                astData.getSequenceDiagramData().getMethodGroups() != null) {
+        if (request.isExtractOnlyUsedMethods()) {
+            // 如果只提取使用的方法，則從classMethods中提取方法名稱
+            for (String methodFqn : classMethods) {
+                String methodSignature = AstClassUtil.getMethodSignature(methodFqn);
+                // 提取方法名稱（去掉參數部分）
+                String methodName = extractMethodNameFromSignature(methodSignature);
+                if (!methodName.isEmpty()) {
+                    usedMethodNames.add(methodName);
+                }
+            }
+            logger.debug("類別 {} 使用的方法: {}", classFqn, usedMethodNames);
+        } else {
+            // 如果提取所有方法，則從AST資料中獲取所有方法資訊
+            FileAstData astData = astIndex.getAstDataByClassFqn(classFqn);
+            if (astData != null && astData.getSequenceDiagramData() != null &&
+                    astData.getSequenceDiagramData().getMethodGroups() != null) {
 
-            for (MethodGroup methodGroup : astData.getSequenceDiagramData().getMethodGroups()) {
-                usedMethodNames.add(methodGroup.getMethodName());
+                for (MethodGroup methodGroup : astData.getSequenceDiagramData().getMethodGroups()) {
+                    usedMethodNames.add(methodGroup.getMethodName());
+                }
             }
         }
 
@@ -253,9 +307,34 @@ public class CodeExtractorService {
     }
 
     /**
+     * 從方法簽名中提取方法名稱
+     */
+    private String extractMethodNameFromSignature(String methodSignature) {
+        if (methodSignature == null || methodSignature.isEmpty()) {
+            return "";
+        }
+
+        // 找到第一個 '(' 的位置，方法名稱在其前面
+        int parenIndex = methodSignature.indexOf('(');
+        if (parenIndex == -1) {
+            return methodSignature;
+        }
+
+        String beforeParen = methodSignature.substring(0, parenIndex);
+
+        // 找到最後一個 '.' 的位置，方法名稱在其後面
+        int lastDotIndex = beforeParen.lastIndexOf('.');
+        if (lastDotIndex == -1) {
+            return beforeParen;
+        }
+
+        return beforeParen.substring(lastDotIndex + 1);
+    }
+
+    /**
      * 從追蹤結果中遞迴提取所有涉及的類別
      */
-    private void extractClassesFromTraceResult(TraceResult traceResult, Set<String> involvedClasses) {
+    private void extractClassesFromTraceResult(TraceResult traceResult, Set<String> involvedMethodFqns) {
         if (traceResult == null || traceResult.getSequenceNodes() == null) {
             return;
         }
@@ -266,7 +345,8 @@ public class CodeExtractorService {
 
                 // 添加被呼叫者的類別
                 if (interaction.getCallee() != null) {
-                    involvedClasses.add(interaction.getCallee());
+                    involvedMethodFqns
+                            .add(AstClassUtil.getMethodFqn(interaction.getCallee(), interaction.getMethodName()));
                 }
 
                 // 遞迴處理內部呼叫
@@ -275,7 +355,7 @@ public class CodeExtractorService {
                         if (internalNode instanceof InteractionModel) {
                             extractClassesFromTraceResult(
                                     new TraceResult("", List.of(internalNode)),
-                                    involvedClasses);
+                                    involvedMethodFqns);
                         }
                     }
                 }
@@ -284,7 +364,7 @@ public class CodeExtractorService {
                 if (interaction.getNextChainedCall() != null) {
                     extractClassesFromTraceResult(
                             new TraceResult("", List.of(interaction.getNextChainedCall())),
-                            involvedClasses);
+                            involvedMethodFqns);
                 }
             }
         }
@@ -296,22 +376,23 @@ public class CodeExtractorService {
     private String mergeSourceCode(List<ClassSourceCode> classSources, CodeExtractionRequest request) {
         StringBuilder mergedCode = new StringBuilder();
 
-        // 添加標題
-        mergedCode.append("// ============================================\n");
-        mergedCode.append("// 代碼提取結果 - 進入點: ").append(request.getEntryPointMethodFqn()).append("\n");
-        mergedCode.append("// 提取時間: ").append(java.time.LocalDateTime.now()).append("\n");
-        mergedCode.append("// 總類別數: ").append(classSources.size()).append("\n");
-        mergedCode.append("// ============================================\n\n");
+        // 添加 Markdown 標題
+        mergedCode.append("# 代碼提取結果\n\n");
+        mergedCode.append("## 提取資訊\n\n");
+        mergedCode.append("- **進入點**: `").append(request.getEntryPointMethodFqn()).append("`\n");
+        mergedCode.append("- **提取時間**: ").append(java.time.LocalDateTime.now()).append("\n");
+        mergedCode.append("- **總類別數**: ").append(classSources.size()).append("\n\n");
 
         // 按類別名稱排序
         classSources.sort((a, b) -> a.getClassFqn().compareTo(b.getClassFqn()));
 
         // 合併每個類別的原始碼
         for (ClassSourceCode classSource : classSources) {
-            mergedCode.append("--- START OF FILE [").append(classSource.getRelativePath()).append("] ---\n");
-            mergedCode.append("// Class: ").append(classSource.getClassFqn()).append("\n");
+            mergedCode.append("## ").append(classSource.getRelativePath()).append("\n\n");
+            mergedCode.append("**類別**: `").append(classSource.getClassFqn()).append("`\n\n");
+            mergedCode.append("```java\n");
             mergedCode.append(classSource.getSourceCode());
-            mergedCode.append("\n--- END OF FILE [").append(classSource.getRelativePath()).append("] ---\n\n");
+            mergedCode.append("\n```\n\n");
         }
 
         return mergedCode.toString();
@@ -326,5 +407,11 @@ public class CodeExtractorService {
         private String classFqn;
         private String relativePath;
         private String sourceCode;
+    }
+
+    @Data
+    private static class EntryPointMethodInfo {
+        private String classFqn;
+        private String methodName;
     }
 }

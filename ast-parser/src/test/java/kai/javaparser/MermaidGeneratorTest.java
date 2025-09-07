@@ -1,9 +1,10 @@
 package kai.javaparser;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -54,7 +55,11 @@ public class MermaidGeneratorTest extends BaseTest {
 
     // 為了方便除錯，可以在測試執行時將捕獲的內容印到標準錯誤流
     // System.err.println("--- Captured MermaidGenerator Output ---\n" + output);
-    Files.writeString(new File("build/diagram.mermaid").toPath(), output);
+
+    // 為每個測試類創建獨立的輸出目錄
+    Path outputDir = Paths.get("build/test-output/" + this.getClass().getSimpleName());
+    Files.createDirectories(outputDir);
+    Files.writeString(outputDir.resolve("diagram.mermaid"), output);
 
     // 由於 AST 解析過程中有編譯錯誤，某些類型被解析為 java.lang.Object
     // 但基本的追蹤邏輯已經工作，我們需要更新期望以匹配實際的 AST 解析結果

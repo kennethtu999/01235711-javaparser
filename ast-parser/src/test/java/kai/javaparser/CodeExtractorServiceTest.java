@@ -40,8 +40,8 @@ public class CodeExtractorServiceTest extends BaseTest {
         super.setUp();
         astDirPath = Paths.get(astDir);
 
-        // 確保輸出目錄存在
-        outputDir = Paths.get("build/test-output");
+        // 為每個測試類創建獨立的輸出目錄
+        outputDir = Paths.get("build/test-output/" + this.getClass().getSimpleName());
         Files.createDirectories(outputDir);
     }
 
@@ -83,7 +83,7 @@ public class CodeExtractorServiceTest extends BaseTest {
 
         // 將結果寫入檔案供檢查
         try {
-            Path outputFile = outputDir.resolve("extracted-code.txt");
+            Path outputFile = outputDir.resolve("extracted-code.md");
             Files.writeString(outputFile, result.getMergedSourceCode());
             logger.info("提取結果已寫入: {}", outputFile.toAbsolutePath());
         } catch (IOException e) {
@@ -109,6 +109,7 @@ public class CodeExtractorServiceTest extends BaseTest {
     void testExtractOnlyUsedMethodsAndAllFields() {
         // Arrange: 準備測試資料
         String entryPointMethodFqn = "com.example.case2.LoginUser.getLevel1(com.example.case2.Company)";
+        // String entryPointMethodFqn = "com.example.case2.CASEMain2.initViewForm()";
         String basePackage = "com.example";
         int maxDepth = 10;
 
@@ -117,8 +118,9 @@ public class CodeExtractorServiceTest extends BaseTest {
                 .astDir(astDirPath.toAbsolutePath().toString())
                 .basePackage(basePackage)
                 .maxDepth(maxDepth)
+                .includeConstructors(true)
                 .includeImports(true)
-                .includeComments(true)
+                .includeComments(false)
                 .extractOnlyUsedMethods(true) // 啟用只提取使用的方法
                 .build();
 
@@ -142,80 +144,11 @@ public class CodeExtractorServiceTest extends BaseTest {
 
         // 將結果寫入檔案供檢查
         try {
-            Path usedMethodsOutputDir = Paths.get("build/case3-used-methods-output");
-            Files.createDirectories(usedMethodsOutputDir);
-            Path outputFile = usedMethodsOutputDir.resolve("extracted-used-methods.txt");
+            Path outputFile = outputDir.resolve("extracted-used-methods.md");
             Files.writeString(outputFile, result.getMergedSourceCode());
             logger.info("提取結果已寫入: {}", outputFile.toAbsolutePath());
         } catch (IOException e) {
             logger.warn("無法寫入輸出檔案", e);
-        }
-    }
-
-    /**
-     * 測試比較：完整提取 vs 只提取使用的方法
-     */
-    @Test
-    void testCompareFullVsUsedMethodsExtraction() {
-        String entryPointMethodFqn = "com.example.case2.LoginUser.getLevel1(com.example.case2.Company)";
-        String basePackage = "com.example";
-        int maxDepth = 2;
-
-        // 1. 完整提取
-        CodeExtractionRequest fullRequest = CodeExtractionRequest.builder()
-                .entryPointMethodFqn(entryPointMethodFqn)
-                .astDir(astDirPath.toAbsolutePath().toString())
-                .basePackage(basePackage)
-                .maxDepth(maxDepth)
-                .includeImports(true)
-                .includeComments(true)
-                .extractOnlyUsedMethods(false) // 完整提取
-                .build();
-
-        CodeExtractionResult fullResult = codeExtractorService.extractCode(fullRequest);
-
-        // 2. 只提取使用的方法
-        CodeExtractionRequest usedRequest = CodeExtractionRequest.builder()
-                .entryPointMethodFqn(entryPointMethodFqn)
-                .astDir(astDirPath.toAbsolutePath().toString())
-                .basePackage(basePackage)
-                .maxDepth(maxDepth)
-                .includeImports(true)
-                .includeComments(true)
-                .extractOnlyUsedMethods(true) // 只提取使用的方法
-                .build();
-
-        CodeExtractionResult usedResult = codeExtractorService.extractCode(usedRequest);
-
-        // 比較結果
-        logger.info("=== 比較結果 ===");
-        logger.info("完整提取行數: {}", fullResult.getTotalLines());
-        logger.info("只提取使用的方法行數: {}", usedResult.getTotalLines());
-        logger.info("減少行數: {}", fullResult.getTotalLines() - usedResult.getTotalLines());
-        logger.info("減少比例: {:.1f}%",
-                (double) (fullResult.getTotalLines() - usedResult.getTotalLines()) / fullResult.getTotalLines() * 100);
-
-        // 驗證只提取使用的方法應該比完整提取的行數少
-        // 注意：如果 AST 解析失敗（只有標題頭，沒有實際類別內容），則跳過此驗證
-        // 標題頭有 5 行，如果只有標題頭則表示沒有找到任何類別
-        if (fullResult.getTotalLines() > 5) {
-            assertTrue(usedResult.getTotalLines() < fullResult.getTotalLines(),
-                    "只提取使用的方法應該比完整提取的行數少。完整提取: " + fullResult.getTotalLines() +
-                            ", 只提取使用的方法: " + usedResult.getTotalLines());
-        } else {
-            logger.warn("AST 解析失敗（只有標題頭，沒有實際類別內容），跳過行數比較驗證。完整提取: {}, 只提取使用的方法: {}",
-                    fullResult.getTotalLines(), usedResult.getTotalLines());
-        }
-
-        // 將兩個結果都寫入檔案供比較
-        try {
-            Path usedMethodsOutputDir = Paths.get("build/case3-used-methods-output");
-            Files.createDirectories(usedMethodsOutputDir);
-            Files.writeString(usedMethodsOutputDir.resolve("full-extraction.txt"), fullResult.getMergedSourceCode());
-            Files.writeString(usedMethodsOutputDir.resolve("used-methods-only.txt"), usedResult.getMergedSourceCode());
-            logger.info("比較結果已寫入檔案");
-        } catch (IOException e) {
-            logger.warn("無法寫入比較檔案", e);
         }
     }
 

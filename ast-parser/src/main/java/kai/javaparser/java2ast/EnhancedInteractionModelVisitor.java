@@ -21,8 +21,10 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 import kai.javaparser.java2ast.handler.ControlFlowHandler;
 import kai.javaparser.java2ast.handler.HandlerContext;
 import kai.javaparser.java2ast.handler.InvocationHandler;
+import kai.javaparser.model.AnnotationInfo;
 import kai.javaparser.model.MethodGroup;
 import kai.javaparser.model.SequenceDiagramData;
+import kai.javaparser.util.AnnotationExtractor;
 
 /**
  * EnhancedInteractionModelVisitor is a visitor that extracts interaction models
@@ -66,9 +68,23 @@ public class EnhancedInteractionModelVisitor extends ASTVisitor {
     public boolean visit(MethodDeclaration node) {
         // 創建新的方法分組
         MethodGroup currentMethodGroup = new MethodGroup();
-        currentMethodGroup.setMethodName(node.getName().getIdentifier());
-        currentMethodGroup.setClassName(context.getCurrentClassName());
-        currentMethodGroup.setFullMethodName(context.getCurrentClassName() + "." + node.getName().getIdentifier());
+
+        // 檢查是否為構造函數（沒有返回類型且方法名與類名相同）
+        boolean isConstructor = node.getReturnType2() == null;
+        String methodName = node.getName().getIdentifier();
+        String className = context.getCurrentClassName();
+        String simpleClassName = className != null ? className.substring(className.lastIndexOf('.') + 1) : "Unknown";
+
+        // 如果是構造函數，方法名應該是類名
+        if (isConstructor) {
+            currentMethodGroup.setMethodName(simpleClassName);
+        } else {
+            currentMethodGroup.setMethodName(methodName);
+        }
+
+        currentMethodGroup.setClassName(className);
+        currentMethodGroup.setFullMethodName(className + "." +
+                (isConstructor ? simpleClassName : methodName));
         currentMethodGroup.setStartLineNumber(context.getCompilationUnit().getLineNumber(node.getStartPosition()));
 
         // 提取方法簽名
@@ -95,6 +111,13 @@ public class EnhancedInteractionModelVisitor extends ASTVisitor {
             }
         }
         currentMethodGroup.setThrownExceptions(thrownExceptions);
+
+        // 新增：提取方法註解
+        List<AnnotationInfo> methodAnnotations = AnnotationExtractor.extractAnnotations(
+                node.modifiers(), context.getCompilationUnit());
+        for (AnnotationInfo annotation : methodAnnotations) {
+            currentMethodGroup.addAnnotation(annotation);
+        }
 
         // 添加到序列數據
         context.getSequenceData().addMethodGroup(currentMethodGroup);

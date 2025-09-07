@@ -11,6 +11,9 @@ public class LoginUser {
     private Company company;
 
     /** 建構子 */
+    public LoginUser() {
+    }
+
     public Company getCompany() {
         return company;
     }
@@ -52,6 +55,7 @@ public class LoginUser {
     }
 
     /** 取得Level1 */
+    @SuppressWarnings("unused")
     public void getLevel1(Company company) {
         List<AccountItem> authzAcntList = getLevel2();
         for (AccountItem accountItem : authzAcntList) {
@@ -66,6 +70,7 @@ public class LoginUser {
      * 
      * @return
      */
+    @SuppressWarnings("unused")
     private List<AccountItem> getLevel2() {
         int x = 0;
         if (x >= 0) {

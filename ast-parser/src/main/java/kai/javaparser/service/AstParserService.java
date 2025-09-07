@@ -126,12 +126,12 @@ public class AstParserService {
                                     // 使用 repository 儲存 AST 資料
                                     astRepository.save(fileAstData);
 
-                                    // 同時儲存原始碼檔案（保持向後相容性）
-                                    Path outputFile0 = outputBaseDir0.resolve(uniquePrefix)
-                                            .resolve(relativePath.toString());
-                                    Files.createDirectories(outputFile0.getParent());
-                                    Files.writeString(outputFile0, new String(fileAstData.getFileContent()),
-                                            Charset.forName("UTF-8"));
+                                    // // 同時儲存原始碼檔案（保持向後相容性）
+                                    // Path outputFile0 = outputBaseDir0.resolve(uniquePrefix)
+                                    // .resolve(relativePath.toString());
+                                    // Files.createDirectories(outputFile0.getParent());
+                                    // Files.writeString(outputFile0, new String(fileAstData.getFileContent()),
+                                    // Charset.forName("UTF-8"));
 
                                     processedFiles[0]++;
 

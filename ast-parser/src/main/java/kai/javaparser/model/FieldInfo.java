@@ -1,5 +1,8 @@
 package kai.javaparser.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
@@ -16,8 +19,10 @@ public class FieldInfo {
     private int endLineNumber; // 屬性結束行號
     private String defaultValue; // 預設值（如果有）
     private String comment; // 註解（如果有）
+    private List<AnnotationInfo> annotations; // 屬性上的註解
 
     public FieldInfo() {
+        this.annotations = new ArrayList<>();
     }
 
     public FieldInfo(String fieldName, String fieldType, String modifiers,
@@ -27,6 +32,14 @@ public class FieldInfo {
         this.modifiers = modifiers;
         this.startLineNumber = startLineNumber;
         this.endLineNumber = endLineNumber;
+        this.annotations = new ArrayList<>();
+    }
+
+    public void addAnnotation(AnnotationInfo annotation) {
+        if (this.annotations == null) {
+            this.annotations = new ArrayList<>();
+        }
+        this.annotations.add(annotation);
     }
 
 }

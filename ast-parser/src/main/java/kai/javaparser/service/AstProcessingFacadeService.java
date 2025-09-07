@@ -129,6 +129,7 @@ public class AstProcessingFacadeService {
         boolean includeImports = getBooleanParam(params, "includeImports", true);
         boolean includeComments = getBooleanParam(params, "includeComments", true);
         boolean extractOnlyUsedMethods = getBooleanParam(params, "extractOnlyUsedMethods", false);
+        boolean includeConstructors = getBooleanParam(params, "includeConstructors", false);
 
         // 創建CodeExtractionRequest
         CodeExtractorService.CodeExtractionRequest extractRequest = CodeExtractorService.CodeExtractionRequest.builder()
@@ -139,6 +140,7 @@ public class AstProcessingFacadeService {
                 .includeImports(includeImports)
                 .includeComments(includeComments)
                 .extractOnlyUsedMethods(extractOnlyUsedMethods)
+                .includeConstructors(includeConstructors)
                 .build();
 
         // 執行代碼提取

@@ -8,6 +8,7 @@ plugins {
 }
 
 dependencies {
+    implementation 'org.apache.openjpa:openjpa:2.2.2'
     // Example: If your test-project uses Spring Boot, add its dependencies here.
     // implementation 'org.springframework.boot:spring-boot-starter:3.5.5'
     // implementation 'org.springframework.data:spring-data-jpa:3.5.5'

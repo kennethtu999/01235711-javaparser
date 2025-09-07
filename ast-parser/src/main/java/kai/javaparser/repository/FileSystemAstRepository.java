@@ -48,8 +48,7 @@ public class FileSystemAstRepository implements AstRepository {
     @Value("${app.astDir}")
     private String initAstDir;
 
-    @Autowired
-    public FileSystemAstRepository(ObjectMapper mapper) {
+    public FileSystemAstRepository(@Autowired ObjectMapper mapper) {
         this.mapper = mapper;
     }
 
@@ -146,6 +145,14 @@ public class FileSystemAstRepository implements AstRepository {
     @Override
     public boolean exists(String classFqn) {
         return classToPathIndex.containsKey(classFqn);
+    }
+
+    /**
+     * 清理緩存，用於測試環境
+     */
+    public void clearCache() {
+        astDataCache.clear();
+        logger.info("AST緩存已清理");
     }
 
     private boolean isValidCacheFile(Path cacheFilePath) {

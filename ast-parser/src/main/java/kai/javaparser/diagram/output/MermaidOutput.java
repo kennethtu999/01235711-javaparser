@@ -144,6 +144,13 @@ public class MermaidOutput {
     }
 
     /**
+     * 添加註解
+     */
+    public void addNote(String participantId, String content) {
+        mermaidList.add(new MermaidNote(participantId, MermaidNote.Location.right, content));
+    }
+
+    /**
      * 1. 所有 participant / actor 移到最前面
      * 2. 去除重複
      * 3. activate 與 deactivate 要成對出現，每多一層 activate 就加兩個空格

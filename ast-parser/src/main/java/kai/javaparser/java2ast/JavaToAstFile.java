@@ -20,9 +20,11 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import kai.javaparser.model.AnnotationInfo;
 import kai.javaparser.model.FieldInfo;
 import kai.javaparser.model.FileAstData;
 import kai.javaparser.model.SequenceDiagramData;
+import kai.javaparser.util.AnnotationExtractor;
 
 public class JavaToAstFile {
 
@@ -73,6 +75,9 @@ public class JavaToAstFile {
             // 設置入口方法（假設是第一個public方法）
             String fqn = findClassFqn(cu);
             sequenceData.setClassFqn(fqn);
+
+            // 提取類別級別的註解
+            extractClassAnnotations(cu, sequenceData);
 
             // 使用自定義訪問者提取互動
             cu.accept(new EnhancedInteractionModelVisitor(sequenceData, cu));
@@ -144,6 +149,10 @@ public class JavaToAstFile {
                             modifiers.append(modifier.toString());
                         }
 
+                        // 提取欄位註解
+                        List<AnnotationInfo> fieldAnnotations = AnnotationExtractor.extractAnnotations(
+                                field.modifiers(), cu);
+
                         // 獲取類型
                         String fieldType = field.getType().toString();
 
@@ -171,8 +180,14 @@ public class JavaToAstFile {
                                         endLine);
                                 fieldInfo.setDefaultValue(defaultValue);
 
+                                // 添加欄位註解
+                                for (AnnotationInfo annotation : fieldAnnotations) {
+                                    fieldInfo.addAnnotation(annotation);
+                                }
+
                                 fields.add(fieldInfo);
-                                logger.debug("提取 field: {} {} {}", modifiers.toString(), fieldType, fieldName);
+                                logger.debug("提取 field: {} {} {} (註解: {})",
+                                        modifiers.toString(), fieldType, fieldName, fieldAnnotations.size());
                             }
                         }
                     }
@@ -182,6 +197,26 @@ public class JavaToAstFile {
 
         logger.info("提取到 {} 個 fields", fields.size());
         return fields;
+    }
+
+    /**
+     * 提取類別級別的註解
+     */
+    private void extractClassAnnotations(CompilationUnit cu, SequenceDiagramData sequenceData) {
+        for (Object typeDecl : cu.types()) {
+            if (typeDecl instanceof TypeDeclaration) {
+                TypeDeclaration type = (TypeDeclaration) typeDecl;
+
+                // 提取類別上的註解
+                List<AnnotationInfo> classAnnotations = AnnotationExtractor.extractAnnotations(
+                        type.modifiers(), cu);
+
+                for (AnnotationInfo annotation : classAnnotations) {
+                    sequenceData.addClassAnnotation(annotation);
+                    logger.debug("提取類別註解: {}", annotation.getAnnotationName());
+                }
+            }
+        }
     }
 
 }

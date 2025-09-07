@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.model.TraceResult;
 import kai.javaparser.service.SequenceTraceService;
 
@@ -17,10 +18,12 @@ public class DiagramService {
     private static final Logger logger = LoggerFactory.getLogger(DiagramService.class);
 
     private final SequenceTraceService sequenceTraceService;
+    private final AstIndex astIndex;
 
     @Autowired
-    public DiagramService(SequenceTraceService sequenceTraceService) {
+    public DiagramService(SequenceTraceService sequenceTraceService, AstIndex astIndex) {
         this.sequenceTraceService = sequenceTraceService;
+        this.astIndex = astIndex;
     }
 
     /**
@@ -38,7 +41,7 @@ public class DiagramService {
             TraceResult traceResult = sequenceTraceService.trace(entryPointMethodFqn, config);
 
             // 2. 創建渲染器並渲染呼叫樹
-            DiagramRenderer renderer = new MermaidRenderer(config);
+            DiagramRenderer renderer = new MermaidRenderer(config, astIndex);
             String diagram = renderer.render(traceResult);
 
             logger.info("Mermaid圖表生成完成，長度: {} 字元", diagram.length());

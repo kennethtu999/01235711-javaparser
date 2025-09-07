@@ -23,8 +23,10 @@ public class MethodGroup {
     private List<InteractionModel> interactions; // 該方法內的互動
     private List<ControlFlowFragment> controlFlowFragments; // 該方法內的控制流程片段
     private List<String> thrownExceptions; // 該方法內的拋出異常
+    private List<AnnotationInfo> annotations; // 方法上的註解
 
     public MethodGroup() {
+        this.annotations = new ArrayList<>();
     }
 
     public void addInteraction(InteractionModel interaction) {
@@ -39,6 +41,13 @@ public class MethodGroup {
             this.controlFlowFragments = new ArrayList<>();
         }
         this.controlFlowFragments.add(fragment);
+    }
+
+    public void addAnnotation(AnnotationInfo annotation) {
+        if (this.annotations == null) {
+            this.annotations = new ArrayList<>();
+        }
+        this.annotations.add(annotation);
     }
 
 }

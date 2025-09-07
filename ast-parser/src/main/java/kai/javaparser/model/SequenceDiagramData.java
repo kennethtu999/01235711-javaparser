@@ -17,9 +17,11 @@ import lombok.Setter;
 public class SequenceDiagramData {
     private String classFqn; // 入口方法
     private List<MethodGroup> methodGroups; // 按方法分組的互動列表
+    private List<AnnotationInfo> classAnnotations; // 類別上的註解
 
     public SequenceDiagramData() {
         this.methodGroups = new ArrayList<>();
+        this.classAnnotations = new ArrayList<>();
     }
 
     public void addMethodGroup(MethodGroup methodGroup) {
@@ -27,6 +29,13 @@ public class SequenceDiagramData {
             this.methodGroups = new ArrayList<>();
         }
         this.methodGroups.add(methodGroup);
+    }
+
+    public void addClassAnnotation(AnnotationInfo annotation) {
+        if (this.classAnnotations == null) {
+            this.classAnnotations = new ArrayList<>();
+        }
+        this.classAnnotations.add(annotation);
     }
 
     /**
