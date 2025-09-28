@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,12 +103,19 @@ public class AstProcessingFacadeService {
 
         // 從params中提取配置參數
         Map<String, Object> params = request.getParams();
-        String basePackage = getStringParam(params, "basePackage", "");
+        Set<String> basePackages = getStringSetParam(params, "basePackages", new HashSet<>());
+        // 向後相容：如果沒有basePackages，嘗試使用basePackage
+        if (basePackages.isEmpty()) {
+            String basePackage = getStringParam(params, "basePackage", "");
+            if (!basePackage.isEmpty()) {
+                basePackages.add(basePackage);
+            }
+        }
         int depth = getIntParam(params, "depth", 5);
 
         // 創建SequenceOutputConfig
         SequenceOutputConfig config = SequenceOutputConfig.builder()
-                .basePackage(basePackage)
+                .basePackages(basePackages)
                 .depth(depth)
                 .build();
 
@@ -124,7 +133,14 @@ public class AstProcessingFacadeService {
 
         // 從params中提取配置參數
         Map<String, Object> params = request.getParams();
-        String basePackage = getStringParam(params, "basePackage", "");
+        Set<String> basePackages = getStringSetParam(params, "basePackages", new HashSet<>());
+        // 向後相容：如果沒有basePackages，嘗試使用basePackage
+        if (basePackages.isEmpty()) {
+            String basePackage = getStringParam(params, "basePackage", "");
+            if (!basePackage.isEmpty()) {
+                basePackages.add(basePackage);
+            }
+        }
         int maxDepth = getIntParam(params, "maxDepth", 5);
         boolean includeImports = getBooleanParam(params, "includeImports", true);
         boolean includeComments = getBooleanParam(params, "includeComments", true);
@@ -135,7 +151,7 @@ public class AstProcessingFacadeService {
         CodeExtractorService.CodeExtractionRequest extractRequest = CodeExtractorService.CodeExtractionRequest.builder()
                 .entryPointMethodFqn(request.getEntryPointMethodFqn())
                 .astDir(astOutputDir)
-                .basePackage(basePackage)
+                .basePackages(basePackages)
                 .maxDepth(maxDepth)
                 .includeImports(includeImports)
                 .includeComments(includeComments)
@@ -215,5 +231,56 @@ public class AstProcessingFacadeService {
             return Boolean.parseBoolean((String) value);
         }
         return defaultValue;
+    }
+
+    /**
+     * 從參數Map中獲取字串集合參數
+     * 支援單一字串（逗號分隔）或字串陣列
+     */
+    private Set<String> getStringSetParam(Map<String, Object> params, String key, Set<String> defaultValue) {
+        if (params == null) {
+            return defaultValue;
+        }
+        Object value = params.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+
+        Set<String> result = new HashSet<>();
+        if (value instanceof String) {
+            String strValue = (String) value;
+            if (!strValue.trim().isEmpty()) {
+                // 支援逗號分隔的字串
+                String[] parts = strValue.split(",");
+                for (String part : parts) {
+                    String trimmed = part.trim();
+                    if (!trimmed.isEmpty()) {
+                        result.add(trimmed);
+                    }
+                }
+            }
+        } else if (value instanceof String[]) {
+            // 支援字串陣列
+            String[] arrayValue = (String[]) value;
+            for (String item : arrayValue) {
+                if (item != null && !item.trim().isEmpty()) {
+                    result.add(item.trim());
+                }
+            }
+        } else if (value instanceof java.util.Collection) {
+            // 支援其他集合類型
+            @SuppressWarnings("unchecked")
+            java.util.Collection<Object> collection = (java.util.Collection<Object>) value;
+            for (Object item : collection) {
+                if (item != null) {
+                    String strItem = item.toString().trim();
+                    if (!strItem.isEmpty()) {
+                        result.add(strItem);
+                    }
+                }
+            }
+        }
+
+        return result.isEmpty() ? defaultValue : result;
     }
 }

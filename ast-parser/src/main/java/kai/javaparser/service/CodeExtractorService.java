@@ -19,9 +19,11 @@ import kai.javaparser.model.FileAstData;
 import kai.javaparser.model.InteractionModel;
 import kai.javaparser.model.MethodGroup;
 import kai.javaparser.model.TraceResult;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * 代碼提取服務
@@ -58,14 +60,23 @@ public class CodeExtractorService {
      */
     @Builder
     @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class CodeExtractionRequest {
         private String entryPointMethodFqn; // 進入點方法的完整限定名
+
         private String astDir; // AST 目錄路徑
-        private String basePackage; // 基礎包名，用於過濾
+
+        private Set<String> basePackages; // 基礎包名列表，用於過濾
+
         private int maxDepth; // 最大追蹤深度
+
         private boolean includeImports; // 是否包含 import 語句
+
         private boolean includeComments; // 是否包含註解
+
         private boolean extractOnlyUsedMethods; // 是否只提取實際使用的方法（但包含所有屬性）
+
         private boolean includeConstructors; // 是否包含構造函數
     }
 
@@ -74,12 +85,19 @@ public class CodeExtractorService {
      */
     @Builder
     @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class CodeExtractionResult {
         private String entryPointMethodFqn;
+
         private Set<String> involvedClasses; // 涉及的所有類別 FQN
+
         private String mergedSourceCode; // 合併後的原始碼
+
         private int totalClasses; // 總類別數
+
         private int totalLines; // 總行數
+
         private String errorMessage; // 錯誤訊息（如果有）
     }
 
@@ -141,7 +159,7 @@ public class CodeExtractorService {
 
         // 使用 SequenceTraceService 來追蹤方法呼叫
         SequenceOutputConfig config = SequenceOutputConfig.builder()
-                .basePackage(request.getBasePackage())
+                .basePackages(request.getBasePackages())
                 .depth(request.getMaxDepth())
                 .build();
 

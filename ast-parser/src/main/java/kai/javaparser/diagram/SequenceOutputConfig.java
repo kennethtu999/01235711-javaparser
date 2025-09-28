@@ -1,6 +1,7 @@
 package kai.javaparser.diagram;
 
 import java.util.HashSet;
+import java.util.Set;
 
 import kai.javaparser.diagram.filter.DefaultTraceFilter;
 import lombok.Builder;
@@ -21,8 +22,8 @@ public class SequenceOutputConfig {
     @Builder.Default
     private boolean hideDetailsInChainExpression = true;
 
-    /** 基礎包 */
-    private String basePackage;
+    /** 基礎包列表 */
+    private Set<String> basePackages;
 
     /** 過濾器 */
     @Builder.Default

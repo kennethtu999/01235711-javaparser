@@ -13,5 +13,29 @@ spring:
     name: ast-parser
     description: Java AST Parser with Spring Boot 3
 
+# Swagger/OpenAPI 配置
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+    filter: true
+    display-request-duration: true
+    display-operation-id: true
+    default-models-expand-depth: 1
+    default-model-expand-depth: 1
+    doc-expansion: none
+    show-extensions: true
+    show-common-extensions: true
+  show-actuator: true
+
 app:
-  astDir: parsed-ast
+  astDir: ${AST_DIR:${user.home}/git/01235711/01235711-javaparser/ast-parser/parsed-ast}
+  tempBaseDir: ${TEMP_BASE_DIR:${user.home}/git/01235711/01235711-javaparser/ast-parser/tmp}
+  debugMode: ${DEBUG_MODE:false}
+  maxConcurrentTasks: ${MAX_CONCURRENT_TASKS:10}
+  taskTimeoutSeconds: ${TASK_TIMEOUT_SECONDS:300}

@@ -9,6 +9,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,13 +56,13 @@ public class CodeExtractorServiceTest extends BaseTest {
     void testExtractCode() {
         // Arrange: 準備測試資料
         String entryPointMethodFqn = "com.example.case2.LoginUser.getLevel1()";
-        String basePackage = "com.example";
+        Set<String> basePackages = new HashSet<>(Arrays.asList("com.example"));
         int maxDepth = 4;
 
         CodeExtractionRequest request = CodeExtractionRequest.builder()
                 .entryPointMethodFqn(entryPointMethodFqn)
                 .astDir(astDirPath.toAbsolutePath().toString())
-                .basePackage(basePackage)
+                .basePackages(basePackages)
                 .maxDepth(maxDepth)
                 .includeImports(true)
                 .includeComments(true)
@@ -110,13 +113,13 @@ public class CodeExtractorServiceTest extends BaseTest {
         // Arrange: 準備測試資料
         String entryPointMethodFqn = "com.example.case2.LoginUser.getLevel1(com.example.case2.Company)";
         // String entryPointMethodFqn = "com.example.case2.CASEMain2.initViewForm()";
-        String basePackage = "com.example";
+        Set<String> basePackages = new HashSet<>(Arrays.asList("com.example"));
         int maxDepth = 10;
 
         CodeExtractionRequest request = CodeExtractionRequest.builder()
                 .entryPointMethodFqn(entryPointMethodFqn)
                 .astDir(astDirPath.toAbsolutePath().toString())
-                .basePackage(basePackage)
+                .basePackages(basePackages)
                 .maxDepth(maxDepth)
                 .includeConstructors(true)
                 .includeImports(true)
@@ -161,7 +164,7 @@ public class CodeExtractorServiceTest extends BaseTest {
         CodeExtractionRequest request = CodeExtractionRequest.builder()
                 .entryPointMethodFqn("com.nonexistent.Class.nonexistentMethod()")
                 .astDir(astDir.toString()) // 使用有效的 AST 目錄
-                .basePackage("com.example")
+                .basePackages(new HashSet<>(Arrays.asList("com.example")))
                 .maxDepth(1)
                 .includeImports(true)
                 .includeComments(true)

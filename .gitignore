@@ -15,3 +15,4 @@ build
 .factorypath
 .DS_Store
 ast-parser/parsed-ast
+ast-parser/tmp

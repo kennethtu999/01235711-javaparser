@@ -34,7 +34,7 @@ public class MermaidGeneratorTest extends BaseTest {
   @Test
   void testGenerateMermaidForCreateList() throws IOException, URISyntaxException {
     String methodSignature = "com.example.case2.LoginUser.getLevel1()";
-    String basePackage = "com.example";
+    Set<String> basePackages = new HashSet<>(Arrays.asList("com.example"));
 
     Set<String> exclusionClassSet = new HashSet<>(Arrays.asList("java.lang"));
 
@@ -46,7 +46,7 @@ public class MermaidGeneratorTest extends BaseTest {
         .depth(4)
         .hideDetailsInConditionals(false)
         .hideDetailsInChainExpression(false)
-        .basePackage(basePackage)
+        .basePackages(basePackages)
         .filter(filter)
         .build();
 

@@ -12,6 +12,15 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
+// 添加編譯參數以支持參數名稱反射
+compileJava {
+    options.compilerArgs += ['-parameters']
+}
+
+compileTestJava {
+    options.compilerArgs += ['-parameters']
+}
+
 configurations {
     gradleApi.extendsFrom implementation
 }
@@ -19,6 +28,9 @@ configurations {
 dependencies {
     // Spring Boot Starter Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    
+    // SpringDoc OpenAPI for Swagger UI
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
     
     // Apache Commons Lang for String manipulation
     implementation 'org.apache.commons:commons-lang3:3.15.0'

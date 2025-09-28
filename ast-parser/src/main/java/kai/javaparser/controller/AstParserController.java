@@ -11,6 +11,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+import java.util.HashSet;
+import java.util.Set;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import kai.javaparser.configuration.AppConfig;
 import kai.javaparser.diagram.DiagramService;
 import kai.javaparser.diagram.SequenceOutputConfig;
 import kai.javaparser.model.ProcessRequest;
@@ -27,17 +39,21 @@ import kai.javaparser.service.TaskManagementService.TaskInfo;
  */
 @RestController
 @RequestMapping("/api/ast")
+@Tag(name = "AST Parser", description = "Java AST解析器API，提供代碼解析、序列圖生成和代碼提取功能")
 public class AstParserController {
     private static final Logger logger = LoggerFactory.getLogger(AstParserController.class);
 
+    private final AppConfig appConfig;
     private final DiagramService diagramService;
     private final CodeExtractorService codeExtractorService;
     private final AstParserService astParserService;
     private final TaskManagementService taskManagementService;
 
     @Autowired
-    public AstParserController(DiagramService diagramService, CodeExtractorService codeExtractorService,
+    public AstParserController(AppConfig appConfig, DiagramService diagramService,
+            CodeExtractorService codeExtractorService,
             AstParserService astParserService, TaskManagementService taskManagementService) {
+        this.appConfig = appConfig;
         this.diagramService = diagramService;
         this.codeExtractorService = codeExtractorService;
         this.astParserService = astParserService;
@@ -47,6 +63,10 @@ public class AstParserController {
     /**
      * 健康檢查端點
      */
+    @Operation(summary = "健康檢查", description = "檢查AST解析器服務是否正常運行")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "服務正常運行", content = @Content(mediaType = "text/plain", examples = @ExampleObject(value = "AST Parser Service is running")))
+    })
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("AST Parser Service is running");
@@ -55,8 +75,14 @@ public class AstParserController {
     /**
      * 非同步解析專案
      */
+    @Operation(summary = "解析Java專案", description = "非同步解析指定的Java專案，生成AST數據")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "解析任務已啟動", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ParseResponse.class))),
+            @ApiResponse(responseCode = "500", description = "解析請求失敗", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ParseResponse.class)))
+    })
     @PostMapping("/parse")
-    public ResponseEntity<ParseResponse> parseProject(@RequestBody ProcessRequest request) {
+    public ResponseEntity<ParseResponse> parseProject(
+            @Parameter(description = "解析請求參數，包含專案路徑等資訊", required = true, example = "{\"projectPath\": \"/path/to/java/project\"}") @RequestBody ProcessRequest request) {
         try {
             logger.info("收到解析請求: {}", request);
 
@@ -86,8 +112,15 @@ public class AstParserController {
     /**
      * 查詢任務狀態
      */
+    @Operation(summary = "查詢任務狀態", description = "根據任務ID查詢解析任務的當前狀態")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "任務狀態查詢成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TaskStatusResponse.class))),
+            @ApiResponse(responseCode = "404", description = "任務不存在"),
+            @ApiResponse(responseCode = "500", description = "查詢任務狀態失敗", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TaskStatusResponse.class)))
+    })
     @GetMapping("/parse/status/{taskId}")
-    public ResponseEntity<TaskStatusResponse> getTaskStatus(@PathVariable String taskId) {
+    public ResponseEntity<TaskStatusResponse> getTaskStatus(
+            @Parameter(description = "解析任務的唯一識別碼，由解析端點返回", required = true, example = "task-12345-67890-abcdef") @PathVariable("taskId") String taskId) {
         try {
             if (!taskManagementService.taskExists(taskId)) {
                 return ResponseEntity.notFound().build();
@@ -115,14 +148,20 @@ public class AstParserController {
     /**
      * 生成序列圖
      */
+    @Operation(summary = "生成序列圖", description = "根據指定的入口方法生成Mermaid序列圖")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "序列圖生成成功", content = @Content(mediaType = "text/plain", examples = @ExampleObject(value = "sequenceDiagram\n    participant A\n    participant B\n    A->>B: Hello"))),
+            @ApiResponse(responseCode = "500", description = "序列圖生成失敗", content = @Content(mediaType = "text/plain", examples = @ExampleObject(value = "圖表生成失敗: 錯誤訊息")))
+    })
     @PostMapping("/generate-diagram")
-    public ResponseEntity<String> generateDiagram(@RequestBody DiagramRequest request) {
+    public ResponseEntity<String> generateDiagram(
+            @Parameter(description = "圖表生成請求參數，包含入口方法、基礎包名和深度設定", required = true, example = "{\"entryPointMethodFqn\": \"com.example.MyClass.myMethod\", \"basePackage\": \"com.example\", \"depth\": 5}") @RequestBody DiagramRequest request) {
         try {
             logger.info("收到圖表生成請求: {}", request);
 
             // 創建配置
             SequenceOutputConfig config = SequenceOutputConfig.builder()
-                    .basePackage(request.getBasePackage())
+                    .basePackages(request.getBasePackages())
                     .depth(request.getDepth())
                     .build();
 
@@ -144,8 +183,14 @@ public class AstParserController {
     /**
      * 提取代碼
      */
+    @Operation(summary = "提取代碼", description = "根據指定的入口方法提取相關的代碼片段")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "代碼提取成功", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CodeExtractionResult.class))),
+            @ApiResponse(responseCode = "500", description = "代碼提取失敗", content = @Content(mediaType = "application/json", schema = @Schema(implementation = CodeExtractionResult.class)))
+    })
     @PostMapping("/extract-code")
-    public ResponseEntity<CodeExtractionResult> extractCode(@RequestBody CodeExtractionRequest request) {
+    public ResponseEntity<CodeExtractionResult> extractCode(
+            @Parameter(description = "代碼提取請求參數，指定要提取的入口方法和相關設定", required = true, example = "{\"entryPointMethodFqn\": \"com.example.MyClass.myMethod\", \"includeFields\": true, \"includeUnusedMethods\": false}") @RequestBody CodeExtractionRequest request) {
         try {
             logger.info("收到代碼提取請求: {}", request);
 
@@ -174,9 +219,15 @@ public class AstParserController {
     /**
      * 圖表生成請求DTO
      */
+    @Schema(description = "圖表生成請求參數")
     public static class DiagramRequest {
+        @Schema(description = "入口方法的完全限定名，格式為 包名.類名.方法名", example = "com.example.MyClass.myMethod", required = true)
         private String entryPointMethodFqn;
-        private String basePackage = "";
+
+        @Schema(description = "基礎包名列表，用於過濾序列圖中的類別，只顯示此包下的類別", example = "[\"com.example\", \"com.other\"]", defaultValue = "[]")
+        private Set<String> basePackages = new HashSet<>();
+
+        @Schema(description = "序列圖的遞歸深度，控制方法調用的層級深度", example = "5", defaultValue = "5", minimum = "1", maximum = "10")
         private int depth = 5;
 
         // Getters and Setters
@@ -188,12 +239,12 @@ public class AstParserController {
             this.entryPointMethodFqn = entryPointMethodFqn;
         }
 
-        public String getBasePackage() {
-            return basePackage;
+        public Set<String> getBasePackages() {
+            return basePackages;
         }
 
-        public void setBasePackage(String basePackage) {
-            this.basePackage = basePackage;
+        public void setBasePackages(Set<String> basePackages) {
+            this.basePackages = basePackages != null ? basePackages : new HashSet<>();
         }
 
         public int getDepth() {
@@ -208,7 +259,7 @@ public class AstParserController {
         public String toString() {
             return "DiagramRequest{" +
                     "entryPointMethodFqn='" + entryPointMethodFqn + '\'' +
-                    ", basePackage='" + basePackage + '\'' +
+                    ", basePackages=" + basePackages +
                     ", depth=" + depth +
                     '}';
         }
@@ -217,8 +268,12 @@ public class AstParserController {
     /**
      * 解析響應DTO
      */
+    @Schema(description = "解析任務響應")
     public static class ParseResponse {
+        @Schema(description = "解析任務的唯一識別碼，用於後續查詢任務狀態", example = "task-12345-67890-abcdef")
         private String taskId;
+
+        @Schema(description = "操作結果的說明訊息", example = "解析任務已啟動")
         private String message;
 
         public ParseResponse(String taskId, String message) {
@@ -247,12 +302,25 @@ public class AstParserController {
     /**
      * 任務狀態響應DTO
      */
+    @Schema(description = "任務狀態響應")
     public static class TaskStatusResponse {
+        @Schema(description = "任務的唯一識別碼", example = "task-12345-67890-abcdef")
         private String taskId;
+
+        @Schema(description = "任務的當前狀態", example = "COMPLETED", allowableValues = { "PENDING", "PROCESSING",
+                "COMPLETED", "ERROR" })
         private String status;
+
+        @Schema(description = "任務執行結果的詳細資訊，成功時包含解析結果", example = "解析完成，共處理 15 個 Java 檔案")
         private String result;
+
+        @Schema(description = "任務執行失敗時的錯誤訊息", example = "解析失敗：找不到指定的專案路徑")
         private String errorMessage;
+
+        @Schema(description = "任務創建時間的 Unix 時間戳（毫秒）", example = "1640995200000")
         private long createdAt;
+
+        @Schema(description = "任務最後更新時間的 Unix 時間戳（毫秒）", example = "1640995200000")
         private long updatedAt;
 
         public TaskStatusResponse(String taskId, String status, String result, String errorMessage,
@@ -322,10 +390,11 @@ public class AstParserController {
         try {
             java.nio.file.Path projectPathObj = java.nio.file.Paths.get(projectPath);
             String projectName = projectPathObj.getFileName().toString();
-            java.nio.file.Path tempDir = java.nio.file.Paths.get(System.getProperty("java.io.tmpdir"),
-                    "ast-parser", projectName);
+            String tempDirPath = appConfig.getFullAstOutputDir(projectName);
+            java.nio.file.Path tempDir = java.nio.file.Paths.get(tempDirPath);
+
             java.nio.file.Files.createDirectories(tempDir);
-            logger.info("創建臨時輸出目錄: {}", tempDir);
+            logger.info("創建臨時輸出目錄: {} (使用配置: {})", tempDir, appConfig.getAstDir());
             return tempDir.toString();
         } catch (Exception e) {
             logger.error("創建臨時輸出目錄失敗", e);

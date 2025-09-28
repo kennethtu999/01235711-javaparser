@@ -224,8 +224,16 @@ public class SequenceTraceService {
     private boolean isTraceable(String methodFqn, Set<String> callStack, SequenceOutputConfig config) {
         if (callStack.contains(methodFqn))
             return false;
-        if (!methodFqn.startsWith(config.getBasePackage()))
-            return false;
+
+        // Check if method belongs to any of the base packages
+        if (config.getBasePackages() != null && !config.getBasePackages().isEmpty()) {
+            boolean belongsToBasePackage = config.getBasePackages().stream()
+                    .anyMatch(basePackage -> methodFqn.startsWith(basePackage));
+            if (!belongsToBasePackage) {
+                return false;
+            }
+        }
+
         return !config.getFilter().shouldExclude(methodFqn, astIndex);
     }
 }
