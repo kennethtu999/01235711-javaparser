@@ -1,2 +1,2 @@
 app:
-  testTempDir: ${user.home}/git/01235711/01235711-javaparser/ast-parser/tmp
+  testTempDir: ${user.home}/git/01235711/01235711-javaparser/ast-parser/parsed-tmp

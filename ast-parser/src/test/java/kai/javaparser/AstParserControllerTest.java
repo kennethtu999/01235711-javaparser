@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.io.File;
 import java.io.FileWriter;
+import java.nio.file.Paths;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -57,17 +58,24 @@ public class AstParserControllerTest {
     @BeforeEach
     void setUp() {
         logger.info("=== 開始設置測試數據 ===");
+        String currentProjectDir = Paths.get("").toAbsolutePath().toString();
+
+        // TODO 可以改變要測試的專案
+        String projectPath = currentProjectDir + "/../test-project";
+        String methodFqn = "com.example.case2.CASEMain2.initViewForm()";
+        // String projectPath = "/Users/kenneth/git/sc";
+        // String methodFqn = "pagecode.cac.cacq001.CACQ001_1.initViewForm()";
 
         // 清理並重新建立測試目錄
         setupTestDirectory();
 
         // 初始化測試數據 - 使用真實的測試專案路徑
         processRequest = new ProcessRequest();
-        processRequest.setProjectPath("/Users/kenneth/git/sc");
+        processRequest.setProjectPath(projectPath);
         logger.info("設置 processRequest: projectPath={}", processRequest.getProjectPath());
 
         diagramRequest = new DiagramRequest();
-        diagramRequest.setEntryPointMethodFqn("pagecode.cac.cacq001.CACQ001_1.initViewForm()");
+        diagramRequest.setEntryPointMethodFqn(methodFqn);
         diagramRequest.setBasePackages(Set.of("pagecode", "com", "tw"));
         diagramRequest.setDepth(5);
         logger.info("設置 diagramRequest: entryPoint={}, basePackages={}, depth={}",
@@ -76,8 +84,8 @@ public class AstParserControllerTest {
                 diagramRequest.getDepth());
 
         codeExtractionRequest = CodeExtractorService.CodeExtractionRequest.builder()
-                .entryPointMethodFqn("pagecode.cac.cacq001.CACQ001_1.initViewForm()")
-                .astDir("/Users/kenneth/git/01235711/01235711-javaparser/ast-parser/parsed-ast")
+                .entryPointMethodFqn(methodFqn)
+                .astDir(currentProjectDir + "/parsed-ast")
                 .basePackages(Set.of("pagecode", "com", "tw"))
                 .maxDepth(5)
                 .includeImports(true)
@@ -113,7 +121,7 @@ public class AstParserControllerTest {
         writeContentToFile("healthResponse.txt", healthResponse);
 
         // 2. 測試解析專案 - 非同步啟動
-        // testParseProject();
+        testParseProject();
 
         // 3. 測試生成序列圖
         logger.info("步驟 4: 測試生成序列圖端點");
@@ -209,7 +217,7 @@ public class AstParserControllerTest {
             if (response.contains("\"status\" : \"COMPLETED\"")) {
                 logger.info("任務已完成！");
                 return; // 任務完成
-            } else if (response.contains("\"status\" : \"ERROR\"")) {
+            } else if (response.contains("\"status\" : \"FAILED\"")) {
                 logger.error("任務執行失敗: {}", response);
                 throw new RuntimeException("任務執行失敗: " + response);
             } else if (response.contains("\"status\" : \"PROCESSING\"")) {
@@ -218,6 +226,8 @@ public class AstParserControllerTest {
                 logger.info("任務等待中...");
             } else {
                 logger.warn("未知的任務狀態: {}", response);
+                // 如果是未知狀態，也停止重複檢查，避免無限循環
+                throw new RuntimeException("未知的任務狀態，停止檢查: " + response);
             }
 
             // 等待 1 秒後重試

@@ -145,7 +145,7 @@ public class AstParserController {
         } catch (Exception e) {
             logger.error("查詢任務狀態失敗", e);
             return ResponseEntity.internalServerError()
-                    .body(new TaskStatusResponse(taskId, "ERROR", null,
+                    .body(new TaskStatusResponse(taskId, "FAILED", null,
                             "查詢任務狀態失敗: " + e.getMessage(), 0, 0));
         }
     }
@@ -320,7 +320,7 @@ public class AstParserController {
         private String taskId;
 
         @Schema(description = "任務的當前狀態", example = "COMPLETED", allowableValues = { "PENDING", "PROCESSING",
-                "COMPLETED", "ERROR" })
+                "COMPLETED", "FAILED" })
         private String status;
 
         @Schema(description = "任務執行結果的詳細資訊，成功時包含解析結果", example = "解析完成，共處理 15 個 Java 檔案")
