@@ -41,6 +41,9 @@ dependencies {
     // Jackson for JSON serialization (Spring Boot 3 manages this version)
     implementation 'com.fasterxml.jackson.core:jackson-databind'
 
+    // Neo4j Java Driver for graph database connectivity
+    implementation 'org.neo4j.driver:neo4j-java-driver:5.20.0'
+
     // Logging with logback-classic as SLF4J backend (Spring Boot 3 manages this version)
     implementation 'org.slf4j:slf4j-api'
     implementation 'org.slf4j:jul-to-slf4j'
