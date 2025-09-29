@@ -33,6 +33,7 @@ import kai.javaparser.service.CodeExtractorService.CodeExtractionResult;
 import kai.javaparser.service.ProjectBuildService;
 import kai.javaparser.service.TaskManagementService;
 import kai.javaparser.service.TaskManagementService.TaskInfo;
+import kai.javaparser.util.TempDirectoryUtil;
 
 /**
  * AST解析器REST控制器
@@ -234,6 +235,16 @@ public class AstParserController {
         @Schema(description = "序列圖的遞歸深度，控制方法調用的層級深度", example = "5", defaultValue = "5", minimum = "1", maximum = "10")
         private int depth = 5;
 
+        // Constructors
+        public DiagramRequest() {
+        }
+
+        public DiagramRequest(String entryPointMethodFqn, Set<String> basePackages, int depth) {
+            this.entryPointMethodFqn = entryPointMethodFqn;
+            this.basePackages = basePackages != null ? basePackages : new HashSet<>();
+            this.depth = depth;
+        }
+
         // Getters and Setters
         public String getEntryPointMethodFqn() {
             return entryPointMethodFqn;
@@ -261,11 +272,8 @@ public class AstParserController {
 
         @Override
         public String toString() {
-            return "DiagramRequest{" +
-                    "entryPointMethodFqn='" + entryPointMethodFqn + '\'' +
-                    ", basePackages=" + basePackages +
-                    ", depth=" + depth +
-                    '}';
+            return String.format("DiagramRequest{entryPointMethodFqn='%s', basePackages=%s, depth=%d}",
+                    entryPointMethodFqn, basePackages, depth);
         }
     }
 
@@ -327,8 +335,8 @@ public class AstParserController {
         @Schema(description = "任務最後更新時間的 Unix 時間戳（毫秒）", example = "1640995200000")
         private long updatedAt;
 
-        public TaskStatusResponse(String taskId, String status, String result, String errorMessage,
-                long createdAt, long updatedAt) {
+        public TaskStatusResponse(String taskId, String status, String result, String errorMessage, long createdAt,
+                long updatedAt) {
             this.taskId = taskId;
             this.status = status;
             this.result = result;
@@ -426,13 +434,8 @@ public class AstParserController {
      */
     private String createTempOutputDir(String projectPath) {
         try {
-            java.nio.file.Path projectPathObj = java.nio.file.Paths.get(projectPath);
-            String projectName = projectPathObj.getFileName().toString();
-            String tempDirPath = appConfig.getFullAstOutputDir(projectName);
-            java.nio.file.Path tempDir = java.nio.file.Paths.get(tempDirPath);
-
-            java.nio.file.Files.createDirectories(tempDir);
-            logger.info("創建臨時輸出目錄: {} (使用配置: {})", tempDir, appConfig.getAstDir());
+            java.nio.file.Path tempDir = TempDirectoryUtil.createTempOutputDirWithConfig(projectPath,
+                    appConfig.getAstDir());
             return tempDir.toString();
         } catch (Exception e) {
             logger.error("創建臨時輸出目錄失敗", e);

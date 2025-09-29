@@ -1,9 +1,7 @@
 package kai.javaparser.service;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -16,6 +14,8 @@ import org.springframework.stereotype.Service;
 import kai.javaparser.diagram.SequenceOutputConfig;
 import kai.javaparser.diagram.DiagramService;
 import kai.javaparser.model.ProcessRequest;
+import kai.javaparser.util.ParameterExtractor;
+import kai.javaparser.util.TempDirectoryUtil;
 
 /**
  * AST處理門面服務
@@ -68,7 +68,7 @@ public class AstProcessingFacadeService {
         logger.info("開始解析專案: {}", request.getProjectPath());
 
         // 創建臨時輸出目錄
-        Path tempOutputDir = createTempOutputDir(request.getProjectPath());
+        Path tempOutputDir = TempDirectoryUtil.createTempOutputDir(request.getProjectPath());
         String tempOutputDirStr = tempOutputDir.toString();
 
         // 使用AstParserService進行解析
@@ -103,15 +103,15 @@ public class AstProcessingFacadeService {
 
         // 從params中提取配置參數
         Map<String, Object> params = request.getParams();
-        Set<String> basePackages = getStringSetParam(params, "basePackages", new HashSet<>());
+        Set<String> basePackages = ParameterExtractor.getStringSetParam(params, "basePackages", new HashSet<>());
         // 向後相容：如果沒有basePackages，嘗試使用basePackage
         if (basePackages.isEmpty()) {
-            String basePackage = getStringParam(params, "basePackage", "");
+            String basePackage = ParameterExtractor.getStringParam(params, "basePackage", "");
             if (!basePackage.isEmpty()) {
                 basePackages.add(basePackage);
             }
         }
-        int depth = getIntParam(params, "depth", 5);
+        int depth = ParameterExtractor.getIntParam(params, "depth", 5);
 
         // 創建SequenceOutputConfig
         SequenceOutputConfig config = SequenceOutputConfig.builder()
@@ -133,19 +133,19 @@ public class AstProcessingFacadeService {
 
         // 從params中提取配置參數
         Map<String, Object> params = request.getParams();
-        Set<String> basePackages = getStringSetParam(params, "basePackages", new HashSet<>());
+        Set<String> basePackages = ParameterExtractor.getStringSetParam(params, "basePackages", new HashSet<>());
         // 向後相容：如果沒有basePackages，嘗試使用basePackage
         if (basePackages.isEmpty()) {
-            String basePackage = getStringParam(params, "basePackage", "");
+            String basePackage = ParameterExtractor.getStringParam(params, "basePackage", "");
             if (!basePackage.isEmpty()) {
                 basePackages.add(basePackage);
             }
         }
-        int maxDepth = getIntParam(params, "maxDepth", 5);
-        boolean includeImports = getBooleanParam(params, "includeImports", true);
-        boolean includeComments = getBooleanParam(params, "includeComments", true);
-        boolean extractOnlyUsedMethods = getBooleanParam(params, "extractOnlyUsedMethods", false);
-        boolean includeConstructors = getBooleanParam(params, "includeConstructors", false);
+        int maxDepth = ParameterExtractor.getIntParam(params, "maxDepth", 5);
+        boolean includeImports = ParameterExtractor.getBooleanParam(params, "includeImports", true);
+        boolean includeComments = ParameterExtractor.getBooleanParam(params, "includeComments", true);
+        boolean extractOnlyUsedMethods = ParameterExtractor.getBooleanParam(params, "extractOnlyUsedMethods", false);
+        boolean includeConstructors = ParameterExtractor.getBooleanParam(params, "includeConstructors", false);
 
         // 創建CodeExtractionRequest
         CodeExtractorService.CodeExtractionRequest extractRequest = CodeExtractorService.CodeExtractionRequest.builder()
@@ -171,116 +171,4 @@ public class AstProcessingFacadeService {
         return result.getMergedSourceCode();
     }
 
-    /**
-     * 創建臨時輸出目錄
-     */
-    private Path createTempOutputDir(String projectPath) throws IOException {
-        Path projectPathObj = Paths.get(projectPath);
-        String projectName = projectPathObj.getFileName().toString();
-        Path tempDir = Paths.get(System.getProperty("java.io.tmpdir"), "ast-parser", projectName);
-
-        Files.createDirectories(tempDir);
-        logger.info("創建臨時輸出目錄: {}", tempDir);
-        return tempDir;
-    }
-
-    /**
-     * 從參數Map中獲取字串參數
-     */
-    private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
-        if (params == null) {
-            return defaultValue;
-        }
-        Object value = params.get(key);
-        return value != null ? value.toString() : defaultValue;
-    }
-
-    /**
-     * 從參數Map中獲取整數參數
-     */
-    private int getIntParam(Map<String, Object> params, String key, int defaultValue) {
-        if (params == null) {
-            return defaultValue;
-        }
-        Object value = params.get(key);
-        if (value instanceof Number) {
-            return ((Number) value).intValue();
-        }
-        if (value instanceof String) {
-            try {
-                return Integer.parseInt((String) value);
-            } catch (NumberFormatException e) {
-                logger.warn("無法解析整數參數 {}: {}, 使用預設值: {}", key, value, defaultValue);
-            }
-        }
-        return defaultValue;
-    }
-
-    /**
-     * 從參數Map中獲取布林參數
-     */
-    private boolean getBooleanParam(Map<String, Object> params, String key, boolean defaultValue) {
-        if (params == null) {
-            return defaultValue;
-        }
-        Object value = params.get(key);
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        if (value instanceof String) {
-            return Boolean.parseBoolean((String) value);
-        }
-        return defaultValue;
-    }
-
-    /**
-     * 從參數Map中獲取字串集合參數
-     * 支援單一字串（逗號分隔）或字串陣列
-     */
-    private Set<String> getStringSetParam(Map<String, Object> params, String key, Set<String> defaultValue) {
-        if (params == null) {
-            return defaultValue;
-        }
-        Object value = params.get(key);
-        if (value == null) {
-            return defaultValue;
-        }
-
-        Set<String> result = new HashSet<>();
-        if (value instanceof String) {
-            String strValue = (String) value;
-            if (!strValue.trim().isEmpty()) {
-                // 支援逗號分隔的字串
-                String[] parts = strValue.split(",");
-                for (String part : parts) {
-                    String trimmed = part.trim();
-                    if (!trimmed.isEmpty()) {
-                        result.add(trimmed);
-                    }
-                }
-            }
-        } else if (value instanceof String[]) {
-            // 支援字串陣列
-            String[] arrayValue = (String[]) value;
-            for (String item : arrayValue) {
-                if (item != null && !item.trim().isEmpty()) {
-                    result.add(item.trim());
-                }
-            }
-        } else if (value instanceof java.util.Collection) {
-            // 支援其他集合類型
-            @SuppressWarnings("unchecked")
-            java.util.Collection<Object> collection = (java.util.Collection<Object>) value;
-            for (Object item : collection) {
-                if (item != null) {
-                    String strItem = item.toString().trim();
-                    if (!strItem.isEmpty()) {
-                        result.add(strItem);
-                    }
-                }
-            }
-        }
-
-        return result.isEmpty() ? defaultValue : result;
-    }
 }
