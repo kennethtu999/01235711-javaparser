@@ -81,8 +81,8 @@ public class AstParserControllerTest {
                 .basePackages(Set.of("pagecode", "com", "tw"))
                 .maxDepth(5)
                 .includeImports(true)
-                .includeComments(true)
-                .extractOnlyUsedMethods(false)
+                .includeComments(false)
+                .extractOnlyUsedMethods(true)
                 .includeConstructors(true)
                 .build();
         logger.info("設置 codeExtractionRequest: entryPoint={}, astDir={}, basePackages={}",
@@ -113,6 +113,54 @@ public class AstParserControllerTest {
         writeContentToFile("healthResponse.txt", healthResponse);
 
         // 2. 測試解析專案 - 非同步啟動
+        // testParseProject();
+
+        // 3. 測試生成序列圖
+        logger.info("步驟 4: 測試生成序列圖端點");
+        String diagramRequestJson = objectMapper.writeValueAsString(diagramRequest);
+        logger.info("圖表請求 JSON: {}", diagramRequestJson);
+        writeContentToFile("diagramRequest.json", diagramRequestJson);
+
+        String diagramResponse = mockMvc.perform(post("/api/ast/generate-diagram")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(diagramRequestJson))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        logger.info("圖表生成響應長度: {} 字元", diagramResponse.length());
+        writeContentToFile("diagramResponse.txt", diagramResponse);
+
+        // 4. 測試代碼提取
+        logger.info("步驟 5: 測試代碼提取端點");
+        String extractRequestJson = objectMapper.writeValueAsString(codeExtractionRequest);
+        logger.info("代碼提取請求 JSON: {}", extractRequestJson);
+        writeContentToFile("extractRequest.json", extractRequestJson);
+
+        String extractResponse = mockMvc.perform(post("/api/ast/extract-code")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(extractRequestJson))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        logger.info("代碼提取響應長度: {} 字元", extractResponse.length());
+        writeContentToFile("extractResponse.json", extractResponse);
+
+        CodeExtractionResult result = objectMapper.readValue(extractResponse, CodeExtractionResult.class);
+        logger.info("合併後的原始碼: {} 字元", result.getMergedSourceCode().length());
+        writeContentToFile("mergedSourceCode.md", result.getMergedSourceCode());
+
+        logger.info("=== 完整 API 工作流程測試完成 ===");
+    }
+
+    /**
+     * 測試解析專案端點 - 非同步啟動
+     * 
+     * @return 任務ID
+     * @throws Exception 如果測試失敗
+     */
+    private void testParseProject() throws Exception {
         logger.info("步驟 2: 測試解析專案端點");
         String parseRequestJson = objectMapper.writeValueAsString(processRequest);
         logger.info("解析請求 JSON: {}", parseRequestJson);
@@ -137,44 +185,6 @@ public class AstParserControllerTest {
         // 3. 等待解析任務完成
         logger.info("步驟 3: 等待解析任務完成");
         waitForTaskCompletion(taskId);
-
-        // 4. 測試生成序列圖
-        logger.info("步驟 4: 測試生成序列圖端點");
-        String diagramRequestJson = objectMapper.writeValueAsString(diagramRequest);
-        logger.info("圖表請求 JSON: {}", diagramRequestJson);
-        writeContentToFile("diagramRequest.json", diagramRequestJson);
-
-        String diagramResponse = mockMvc.perform(post("/api/ast/generate-diagram")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(diagramRequestJson))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        logger.info("圖表生成響應長度: {} 字元", diagramResponse.length());
-        writeContentToFile("diagramResponse.txt", diagramResponse);
-
-        // 5. 測試代碼提取
-        logger.info("步驟 5: 測試代碼提取端點");
-        String extractRequestJson = objectMapper.writeValueAsString(codeExtractionRequest);
-        logger.info("代碼提取請求 JSON: {}", extractRequestJson);
-        writeContentToFile("extractRequest.json", extractRequestJson);
-
-        String extractResponse = mockMvc.perform(post("/api/ast/extract-code")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(extractRequestJson))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        logger.info("代碼提取響應長度: {} 字元", extractResponse.length());
-        writeContentToFile("extractResponse.json", extractResponse);
-
-        CodeExtractionResult result = objectMapper.readValue(extractResponse, CodeExtractionResult.class);
-        logger.info("合併後的原始碼: {} 字元", result.getMergedSourceCode().length());
-        writeContentToFile("mergedSourceCode.md", result.getMergedSourceCode());
-
-        logger.info("=== 完整 API 工作流程測試完成 ===");
     }
 
     /**

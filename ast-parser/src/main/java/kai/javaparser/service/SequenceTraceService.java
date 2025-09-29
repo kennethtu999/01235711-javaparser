@@ -86,7 +86,10 @@ public class SequenceTraceService {
         if (!isTraceable(methodFqn, callStack, config))
             return;
 
+        // 移除泛型資訊
         String classFqn = AstClassUtil.getClassFqnFromMethodFqn(methodFqn);
+        classFqn = classFqn.replaceAll("<.*>", "");
+
         FileAstData astData = astIndex.getAstDataByClassFqn(classFqn);
         if (astData == null) {
             logger.warn("無法找到類別的 AST 資料: {}", classFqn);

@@ -30,6 +30,7 @@ import kai.javaparser.service.AstParserService;
 import kai.javaparser.service.CodeExtractorService;
 import kai.javaparser.service.CodeExtractorService.CodeExtractionRequest;
 import kai.javaparser.service.CodeExtractorService.CodeExtractionResult;
+import kai.javaparser.service.ProjectBuildService;
 import kai.javaparser.service.TaskManagementService;
 import kai.javaparser.service.TaskManagementService.TaskInfo;
 
@@ -48,16 +49,19 @@ public class AstParserController {
     private final CodeExtractorService codeExtractorService;
     private final AstParserService astParserService;
     private final TaskManagementService taskManagementService;
+    private final ProjectBuildService projectBuildService;
 
     @Autowired
     public AstParserController(AppConfig appConfig, DiagramService diagramService,
             CodeExtractorService codeExtractorService,
-            AstParserService astParserService, TaskManagementService taskManagementService) {
+            AstParserService astParserService, TaskManagementService taskManagementService,
+            ProjectBuildService projectBuildService) {
         this.appConfig = appConfig;
         this.diagramService = diagramService;
         this.codeExtractorService = codeExtractorService;
         this.astParserService = astParserService;
         this.taskManagementService = taskManagementService;
+        this.projectBuildService = projectBuildService;
     }
 
     /**
@@ -89,8 +93,8 @@ public class AstParserController {
             // 創建臨時輸出目錄
             String tempOutputDir = createTempOutputDir(request.getProjectPath());
 
-            // 啟動非同步解析任務
-            var future = astParserService.parseSourceDirectoryAsync(request.getProjectPath(), tempOutputDir);
+            // 啟動非同步解析任務，包含建置邏輯
+            var future = parseProjectWithBuildAsync(request.getProjectPath(), tempOutputDir);
 
             // 創建任務並立即返回任務ID
             String taskId = taskManagementService.createTask(future);
@@ -380,6 +384,40 @@ public class AstParserController {
 
         public void setUpdatedAt(long updatedAt) {
             this.updatedAt = updatedAt;
+        }
+    }
+
+    /**
+     * 非同步解析專案，包含建置邏輯
+     */
+    @org.springframework.scheduling.annotation.Async
+    public java.util.concurrent.CompletableFuture<String> parseProjectWithBuildAsync(String projectPath,
+            String tempOutputDir) {
+        try {
+            logger.info("開始建置專案: {}", projectPath);
+
+            // 步驟1: 建置專案並收集源碼目錄和 classpath
+            java.nio.file.Path projectRoot = java.nio.file.Paths.get(projectPath);
+            ProjectBuildService.BuildResult buildResult = projectBuildService.buildProject(projectRoot);
+
+            logger.info("專案建置完成，源碼目錄: {}, classpath 項目: {}",
+                    buildResult.getSourceRoots().size(), buildResult.getProjectClasspath().size());
+
+            // 步驟2: 使用建置結果進行 AST 解析
+            String result = astParserService.parseSourceDirectoryWithClasspath(
+                    projectPath,
+                    String.join(",", buildResult.getSourceRoots()),
+                    tempOutputDir,
+                    String.join(",", buildResult.getProjectClasspath()),
+                    "17" // 預設 Java 合規性等級
+            );
+
+            logger.info("AST 解析完成: {}", result);
+            return java.util.concurrent.CompletableFuture.completedFuture(result);
+
+        } catch (Exception e) {
+            logger.error("非同步解析專案失敗", e);
+            return java.util.concurrent.CompletableFuture.failedFuture(e);
         }
     }
 

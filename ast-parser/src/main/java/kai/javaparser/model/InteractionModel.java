@@ -2,6 +2,7 @@ package kai.javaparser.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.List;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Data
+@EqualsAndHashCode(exclude = { "nextChainedCall", "internalCalls" })
 public class InteractionModel implements DiagramNode {
     private String sequenceId;
     private String caller; // 呼叫者類型

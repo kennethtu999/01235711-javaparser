@@ -157,6 +157,14 @@ public class CodeExtractorService {
     private Set<String> traceDependencies(CodeExtractionRequest request) {
         Set<String> involvedMethodFqns = new HashSet<>();
 
+        // 檢查進入點方法是否在 basePackages 範圍內
+        String entryPointClassFqn = AstClassUtil.getClassFqnFromMethodFqn(request.getEntryPointMethodFqn());
+        if (!isClassInBasePackages(entryPointClassFqn, request.getBasePackages())) {
+            logger.warn("進入點方法 {} 的類別 {} 不在 basePackages 範圍內",
+                    request.getEntryPointMethodFqn(), entryPointClassFqn);
+            return involvedMethodFqns; // 返回空的結果
+        }
+
         // 使用 SequenceTraceService 來追蹤方法呼叫
         SequenceOutputConfig config = SequenceOutputConfig.builder()
                 .basePackages(request.getBasePackages())
@@ -191,8 +199,17 @@ public class CodeExtractorService {
 
         // 2. Process each class
         for (Map.Entry<String, Set<String>> entry : classToMethodsMap.entrySet()) {
+            // 移除泛型資訊
             String classFqn = entry.getKey();
+            classFqn = classFqn.replaceAll("<.*>", "");
+
             Set<String> classMethods = entry.getValue();
+
+            // 檢查類別是否在 basePackages 範圍內
+            if (!isClassInBasePackages(classFqn, request.getBasePackages())) {
+                logger.debug("跳過不在 basePackages 範圍內的類別: {}", classFqn);
+                continue;
+            }
 
             logger.debug("處理類別: {} 包含 {} 個方法", classFqn, classMethods.size());
 
@@ -350,9 +367,29 @@ public class CodeExtractorService {
     }
 
     /**
+     * 檢查類別是否在 basePackages 範圍內
+     */
+    private boolean isClassInBasePackages(String classFqn, Set<String> basePackages) {
+        if (basePackages == null || basePackages.isEmpty()) {
+            return true; // 如果沒有指定 basePackages，則包含所有類別
+        }
+
+        return basePackages.stream()
+                .anyMatch(basePackage -> classFqn.startsWith(basePackage));
+    }
+
+    /**
      * 從追蹤結果中遞迴提取所有涉及的類別
      */
     private void extractClassesFromTraceResult(TraceResult traceResult, Set<String> involvedMethodFqns) {
+        extractClassesFromTraceResult(traceResult, involvedMethodFqns, new HashSet<>());
+    }
+
+    /**
+     * 從追蹤結果中遞迴提取所有涉及的類別（帶訪問追蹤）
+     */
+    private void extractClassesFromTraceResult(TraceResult traceResult, Set<String> involvedMethodFqns,
+            Set<Object> visitedNodes) {
         if (traceResult == null || traceResult.getSequenceNodes() == null) {
             return;
         }
@@ -360,6 +397,12 @@ public class CodeExtractorService {
         for (var node : traceResult.getSequenceNodes()) {
             if (node instanceof InteractionModel) {
                 InteractionModel interaction = (InteractionModel) node;
+
+                // 檢查是否已經訪問過此節點，避免循環引用
+                if (visitedNodes.contains(interaction)) {
+                    continue;
+                }
+                visitedNodes.add(interaction);
 
                 // 添加被呼叫者的類別
                 if (interaction.getCallee() != null) {
@@ -373,7 +416,8 @@ public class CodeExtractorService {
                         if (internalNode instanceof InteractionModel) {
                             extractClassesFromTraceResult(
                                     new TraceResult("", List.of(internalNode)),
-                                    involvedMethodFqns);
+                                    involvedMethodFqns,
+                                    visitedNodes);
                         }
                     }
                 }
@@ -382,7 +426,8 @@ public class CodeExtractorService {
                 if (interaction.getNextChainedCall() != null) {
                     extractClassesFromTraceResult(
                             new TraceResult("", List.of(interaction.getNextChainedCall())),
-                            involvedMethodFqns);
+                            involvedMethodFqns,
+                            visitedNodes);
                 }
             }
         }

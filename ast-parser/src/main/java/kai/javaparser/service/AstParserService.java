@@ -111,7 +111,8 @@ public class AstParserService {
                 totalFiles += javaFiles.size();
 
                 // Determine a unique prefix for files from this source root
-                String uniquePrefix = sourceRoot.toAbsolutePath().toString().replace(baseFolder, "").replace("/", "_");
+                final String uniquePrefix = sourceRoot.toAbsolutePath().toString().replace(baseFolder, "").replace("/",
+                        "_");
 
                 javaFiles.parallelStream()
                         .map(path -> astExtractor.parseJavaFile(path, projectSources, projectClasspath,
@@ -119,7 +120,7 @@ public class AstParserService {
                         .forEach(fileAstData -> {
                             if (fileAstData != null) {
                                 Path relativePath = sourceRoot.relativize(Paths.get(fileAstData.getAbsolutePath()));
-                                fileAstData.setRelativePath(relativePath.toString());
+                                fileAstData.setRelativePath(uniquePrefix + "/" + relativePath.toString());
 
                                 try {
                                     // 使用 repository 儲存 AST 資料
@@ -165,6 +166,22 @@ public class AstParserService {
         String javaLevel = JavaCore.VERSION_17;
 
         return executeAstParsing(baseFolder, sourceRoot, outputDir, classpath, javaLevel);
+    }
+
+    /**
+     * 帶有自定義 classpath 的 AST 解析
+     * 
+     * @param sourceRoot  源碼根目錄
+     * @param sourceRoots 源碼根目錄列表（逗號分隔）
+     * @param outputDir   輸出目錄
+     * @param classpath   classpath（逗號分隔）
+     * @param javaLevel   Java 合規性等級
+     * @return 解析結果信息
+     */
+    public String parseSourceDirectoryWithClasspath(String sourceRoot, String sourceRoots, String outputDir,
+            String classpath, String javaLevel) {
+        String baseFolder = Paths.get(sourceRoot).getParent().toString();
+        return executeAstParsing(baseFolder, sourceRoots, outputDir, classpath, javaLevel);
     }
 
     /**
