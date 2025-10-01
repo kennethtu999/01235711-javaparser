@@ -1,12 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <!-- Console appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread{10}] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <root level="DEBUG">
+    <!-- File appender for debug logs -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/parser.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/parser.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread{10}] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>DEBUG</level>
+        </filter>
+    </appender>
+
+    <!-- 特別為 kai 包設置 DEBUG 級別，同時輸出到 console 和文件 -->
+    <logger name="kai" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <root level="INFO">
         <appender-ref ref="CONSOLE" />
     </root>
 </configuration>
+

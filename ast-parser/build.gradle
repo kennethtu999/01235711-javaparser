@@ -64,12 +64,6 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-// Exclude conflicting logging dependencies from Gradle API
-configurations.all {
-    exclude group: 'org.slf4j', module: 'slf4j-api'
-    exclude group: 'ch.qos.logback', module: 'logback-classic'
-}
-
 application {
     mainClass = 'kai.javaparser.AstParserSpringBootApp'
 }
@@ -93,6 +87,9 @@ tasks.test {
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat = 'full'
+        showStandardStreams = true
+        showCauses = true
+        showStackTraces = true
     }
 }
 

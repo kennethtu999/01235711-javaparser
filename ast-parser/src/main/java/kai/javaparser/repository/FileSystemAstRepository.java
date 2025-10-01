@@ -155,6 +155,15 @@ public class FileSystemAstRepository implements AstRepository {
         logger.info("AST緩存已清理");
     }
 
+    /**
+     * 獲取 AST JSON 目錄路徑
+     * 
+     * @return AST JSON 目錄路徑
+     */
+    public Path getAstJsonDir() {
+        return astJsonDir;
+    }
+
     private boolean isValidCacheFile(Path cacheFilePath) {
         // 如果快取檔案不存在，則不使用快取
         if (!Files.exists(cacheFilePath)) {
