@@ -1,5 +1,10 @@
 package kai.javaparser.configuration;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -35,6 +40,11 @@ public class AppConfig {
      * 任務超時時間（秒）
      */
     private int taskTimeoutSeconds = 300;
+
+    /**
+     * 圖數據庫配置
+     */
+    private GraphConfig graph = new GraphConfig();
 
     // Getters and Setters
     public String getAstDir() {
@@ -77,6 +87,14 @@ public class AppConfig {
         this.taskTimeoutSeconds = taskTimeoutSeconds;
     }
 
+    public GraphConfig getGraph() {
+        return graph;
+    }
+
+    public void setGraph(GraphConfig graph) {
+        this.graph = graph;
+    }
+
     /**
      * 獲取完整的AST輸出目錄路徑
      * 
@@ -105,6 +123,86 @@ public class AppConfig {
                 ", debugMode=" + debugMode +
                 ", maxConcurrentTasks=" + maxConcurrentTasks +
                 ", taskTimeoutSeconds=" + taskTimeoutSeconds +
+                ", graph=" + graph +
                 '}';
+    }
+
+    /**
+     * 圖數據庫配置類
+     */
+    public static class GraphConfig {
+        /**
+         * 排除的註解列表
+         */
+        private ExcludeConfig exclude = new ExcludeConfig();
+
+        public ExcludeConfig getExclude() {
+            return exclude;
+        }
+
+        public void setExclude(ExcludeConfig exclude) {
+            this.exclude = exclude;
+        }
+
+        @Override
+        public String toString() {
+            return "GraphConfig{" +
+                    "exclude=" + exclude +
+                    '}';
+        }
+    }
+
+    /**
+     * 排除配置類
+     */
+    public static class ExcludeConfig {
+        /**
+         * 要排除的註解名稱列表（逗號分隔）
+         */
+        private String annotation = "Override,Deprecated,SuppressWarnings";
+
+        private Set<String> excludedAnnotations;
+
+        public String getAnnotation() {
+            return annotation;
+        }
+
+        public void setAnnotation(String annotation) {
+            this.annotation = annotation;
+        }
+
+        /**
+         * 獲取排除的註解名稱列表
+         * 
+         * @return 註解名稱列表
+         */
+        public Set<String> getExcludedAnnotations() {
+            if (excludedAnnotations != null) {
+                return excludedAnnotations;
+            }
+
+            List<String> excludedAnnotations1 = new ArrayList<>();
+            if (annotation != null && !annotation.trim().isEmpty()) {
+                excludedAnnotations1 = Arrays.asList(annotation.split(","))
+                        .stream()
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList();
+            }
+
+            // 加上JAVA 預設的
+            excludedAnnotations1.add("Override");
+            excludedAnnotations1.add("Deprecated");
+            excludedAnnotations1.add("SuppressWarnings");
+            excludedAnnotations = Set.copyOf(excludedAnnotations1);
+            return excludedAnnotations;
+        }
+
+        @Override
+        public String toString() {
+            return "ExcludeConfig{" +
+                    "annotation='" + annotation + '\'' +
+                    '}';
+        }
     }
 }

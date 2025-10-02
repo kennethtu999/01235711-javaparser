@@ -3,11 +3,13 @@ package com.example.case2;
 import java.util.List;
 import java.util.logging.Logger;
 
+@AccessLogAnnotation
 public class CASEMain2 {
     private static final Logger logger = Logger.getLogger(CASEMain2.class.getName());
 
     private LoginUser loginUser = new LoginUser();
 
+    @OperationLogAnnotation
     public void initViewForm(CASE001_1_Param viewParam, CASE001_1_View viewForm)
             throws ActionException {
         try {

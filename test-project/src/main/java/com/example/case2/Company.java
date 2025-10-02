@@ -1,5 +1,6 @@
 package com.example.case2;
 
+@AccessLogAnnotation
 public class Company {
 
     private String companyName;

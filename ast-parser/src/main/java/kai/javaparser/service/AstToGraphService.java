@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import kai.javaparser.configuration.AppConfig;
 import kai.javaparser.repository.FileSystemAstRepository;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,9 @@ public class AstToGraphService {
 
     @Autowired
     private FileSystemAstRepository astRepository;
+
+    @Autowired
+    private AppConfig appConfig;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -385,10 +390,20 @@ public class AstToGraphService {
             JsonNode classAnnotations = sequenceData.path("classAnnotations");
             if (classAnnotations.isArray()) {
                 for (JsonNode annotation : classAnnotations) {
-                    // 創建 HAS_ANNOTATION 關係（內部會創建 Annotation 節點）
-                    String relationCypher = generateHasAnnotationCypher("Class", className, annotation, sourceFile,
-                            packageName, rootNode);
-                    cyphers.add(relationCypher);
+                    String annotationName = annotation.path("annotationName").asText();
+                    if (annotationName.isEmpty()) {
+                        annotationName = annotation.path("simpleName").asText();
+                    }
+
+                    // 檢查是否應該排除此註解
+                    if (!shouldExcludeAnnotation(annotationName)) {
+                        // 創建 HAS_ANNOTATION 關係（內部會創建 Annotation 節點）
+                        String relationCypher = generateHasAnnotationCypher("Class", className, annotation, sourceFile,
+                                packageName, rootNode);
+                        cyphers.add(relationCypher);
+                    } else {
+                        log.debug("排除類別註解: {}", annotationName);
+                    }
                 }
             }
 
@@ -400,10 +415,20 @@ public class AstToGraphService {
                     JsonNode methodAnnotations = methodGroup.path("annotations");
                     if (methodAnnotations.isArray()) {
                         for (JsonNode annotation : methodAnnotations) {
-                            // 創建 HAS_ANNOTATION 關係（內部會創建 Annotation 節點）
-                            String relationCypher = generateHasAnnotationCypher("Method", methodName, annotation,
-                                    sourceFile, packageName, rootNode);
-                            cyphers.add(relationCypher);
+                            String annotationName = annotation.path("annotationName").asText();
+                            if (annotationName.isEmpty()) {
+                                annotationName = annotation.path("simpleName").asText();
+                            }
+
+                            // 檢查是否應該排除此註解
+                            if (!shouldExcludeAnnotation(annotationName)) {
+                                // 創建 HAS_ANNOTATION 關係（內部會創建 Annotation 節點）
+                                String relationCypher = generateHasAnnotationCypher("Method", methodName, annotation,
+                                        sourceFile, packageName, rootNode);
+                                cyphers.add(relationCypher);
+                            } else {
+                                log.debug("排除方法註解: {} on method {}", annotationName, methodName);
+                            }
                         }
                     }
                 }
@@ -623,6 +648,24 @@ public class AstToGraphService {
     }
 
     // ==================== 輔助方法 ====================
+
+    /**
+     * 檢查註解是否應該被排除
+     * 
+     * @param annotationName 註解名稱
+     * @return 如果應該排除則返回 true
+     */
+    private boolean shouldExcludeAnnotation(String annotationName) {
+        if (annotationName == null || annotationName.trim().isEmpty()) {
+            return false;
+        }
+
+        // 獲取排除的註解列表
+        Set<String> excludedAnnotations = appConfig.getGraph().getExclude().getExcludedAnnotations();
+
+        // 檢查是否在排除列表中
+        return excludedAnnotations.contains(annotationName.trim());
+    }
 
     /**
      * 從 JSON 節點中提取類名

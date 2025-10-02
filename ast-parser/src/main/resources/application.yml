@@ -51,3 +51,6 @@ app:
   debugMode: ${DEBUG_MODE:false}
   maxConcurrentTasks: ${MAX_CONCURRENT_TASKS:10}
   taskTimeoutSeconds: ${TASK_TIMEOUT_SECONDS:300}
+  graph:
+    exclude:
+      annotation: ""
