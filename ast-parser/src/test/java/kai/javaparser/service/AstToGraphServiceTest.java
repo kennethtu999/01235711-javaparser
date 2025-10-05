@@ -11,8 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import kai.javaparser.repository.FileSystemAstRepository;
-
 /**
  * AST 到圖數據庫轉換服務測試類
  */
@@ -21,12 +19,6 @@ public class AstToGraphServiceTest {
 
     @Autowired
     private AstToGraphService astToGraphService;
-
-    @Autowired
-    private Neo4jService neo4jService;
-
-    @Autowired
-    private FileSystemAstRepository astRepository;
 
     @BeforeEach
     void setUp() {
