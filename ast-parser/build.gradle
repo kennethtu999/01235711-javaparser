@@ -26,6 +26,7 @@ configurations {
 }
 
 dependencies {
+    
     // Spring Boot Starter Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
     
@@ -43,6 +44,12 @@ dependencies {
 
     // Neo4j Java Driver for graph database connectivity
     implementation 'org.neo4j.driver:neo4j-java-driver:5.20.0'
+
+
+    // Spring AI for AI integration
+    implementation platform("org.springframework.ai:spring-ai-bom:1.0.3")
+    implementation 'org.springframework.ai:spring-ai-starter-model-ollama:1.0.3'
+
 
     // Logging with logback-classic as SLF4J backend (Spring Boot 3 manages this version)
     implementation 'org.slf4j:slf4j-api'

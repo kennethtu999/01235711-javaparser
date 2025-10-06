@@ -27,6 +27,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kai.javaparser.controller.AstParserController.DiagramRequest;
 import kai.javaparser.model.ProcessRequest;
+import kai.javaparser.service.AiSummaryService;
+import kai.javaparser.service.AiSummaryService.SummaryData;
 import kai.javaparser.service.CodeExtractorService;
 import kai.javaparser.service.CodeExtractorService.CodeExtractionRequest;
 import kai.javaparser.service.CodeExtractorService.CodeExtractionResult;
@@ -50,6 +52,9 @@ public class AstParserControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private AiSummaryService aiSummaryService;
 
     private ProcessRequest processRequest;
     private DiagramRequest diagramRequest;
@@ -158,6 +163,31 @@ public class AstParserControllerTest {
         CodeExtractionResult result = objectMapper.readValue(extractResponse, CodeExtractionResult.class);
         logger.info("合併後的原始碼: {} 字元", result.getMergedSourceCode().length());
         writeContentToFile("mergedSourceCode.md", result.getMergedSourceCode());
+
+        // 5. 生成 AI 摘要
+        logger.info("步驟 6: 生成 AI 摘要");
+        try {
+            SummaryData summaryData = new SummaryData(
+                    "成功", // healthStatus
+                    "完成", // parseStatus
+                    diagramResponse.length(), // diagramResponseLength
+                    extractResponse.length(), // extractResponseLength
+                    result.getMergedSourceCode().length() // mergedSourceLength
+            );
+
+            String aiSummary = aiSummaryService.generateSummary(summaryData);
+            logger.info("AI 摘要生成完成: {} 字元", aiSummary.length());
+            writeContentToFile("aiSummary.md", aiSummary);
+
+            logger.info("=== AI 摘要內容 ===");
+            logger.info(aiSummary);
+            logger.info("=== AI 摘要結束 ===");
+
+        } catch (Exception e) {
+            logger.error("生成 AI 摘要時發生錯誤: {}", e.getMessage(), e);
+            String errorSummary = "AI 摘要生成失敗: " + e.getMessage();
+            writeContentToFile("aiSummaryError.txt", errorSummary);
+        }
 
         logger.info("=== 完整 API 工作流程測試完成 ===");
     }
