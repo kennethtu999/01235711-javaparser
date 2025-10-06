@@ -21,6 +21,7 @@ import org.springframework.stereotype.Repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
+import kai.javaparser.ast.repository.AstRepository;
 import kai.javaparser.model.FileAstData;
 
 /**

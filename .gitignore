@@ -16,3 +16,7 @@ build
 .DS_Store
 ast-parser/parsed-ast
 ast-parser/parsed-tmp
+temp/cacq002/CACQ002_1.jsp
+temp/cacq002/CACQ002_2.jsp
+temp/cacq002/CACQ002_3.jsp
+ws.code-workspace

@@ -13,9 +13,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
+import kai.javaparser.ast.service.AstParserService;
+import kai.javaparser.ast.service.TaskManagementService;
 import kai.javaparser.repository.FileSystemAstRepository;
-import kai.javaparser.service.AstParserService;
-import kai.javaparser.service.TaskManagementService;
 
 public class BaseTest {
 

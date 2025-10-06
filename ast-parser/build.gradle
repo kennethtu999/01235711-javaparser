@@ -44,6 +44,9 @@ dependencies {
 
     // Neo4j Java Driver for graph database connectivity
     implementation 'org.neo4j.driver:neo4j-java-driver:5.20.0'
+     
+    // Spring Data Neo4j for graph database operations
+    implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
 
 
     // Spring AI for AI integration
