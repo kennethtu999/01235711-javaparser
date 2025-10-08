@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import kai.javaparser.jsp.model.JspKnowledgeGraph;
+import kai.javaparser.jsp.model.JspAnalysisResult;
 import kai.javaparser.jsp.model.JspKnowledgeGraph.BackendMethodNode;
 import kai.javaparser.jsp.model.JspKnowledgeGraph.ContainsRelationship;
 import kai.javaparser.jsp.model.JspKnowledgeGraph.DependsOnRelationship;
@@ -41,7 +42,7 @@ public class JspKnowledgeGraphBuilder {
      * @param analysisResult JSP 分析結果
      * @return 知識圖譜
      */
-    public JspKnowledgeGraph buildKnowledgeGraph(JspStructureAnalyzerService.JspAnalysisResult analysisResult) {
+    public JspKnowledgeGraph buildKnowledgeGraph(JspAnalysisResult analysisResult) {
         logger.info("開始建構 JSP 知識圖譜: {}", analysisResult.getFileName());
 
         JspKnowledgeGraph graph = new JspKnowledgeGraph();
@@ -90,7 +91,7 @@ public class JspKnowledgeGraphBuilder {
     /**
      * 建立頁面節點
      */
-    private PageNode createPageNode(JspStructureAnalyzerService.JspAnalysisResult analysisResult) {
+    private PageNode createPageNode(JspAnalysisResult analysisResult) {
         PageNode pageNode = new PageNode("page_" + analysisResult.getFileName(), analysisResult.getFileName());
         pageNode.setPagecodeClass(analysisResult.getPagecodeClass());
         pageNode.setExternalJsReferences(analysisResult.getExternalJsReferences());
@@ -105,10 +106,10 @@ public class JspKnowledgeGraphBuilder {
     /**
      * 建立 JSF 元件節點和關係
      */
-    private void createJsfComponentNodes(JspStructureAnalyzerService.JspAnalysisResult analysisResult,
+    private void createJsfComponentNodes(JspAnalysisResult analysisResult,
             JspKnowledgeGraph graph, PageNode pageNode) {
 
-        for (JspStructureAnalyzerService.JsfComponent jsfComponent : analysisResult.getJsfComponents()) {
+        for (kai.javaparser.jsp.model.JsfComponent jsfComponent : analysisResult.getJsfComponents()) {
             // 建立 JSF 元件節點
             JsfComponentNode componentNode = new JsfComponentNode(
                     jsfComponent.getId(),
@@ -141,10 +142,10 @@ public class JspKnowledgeGraphBuilder {
     /**
      * 建立 JavaScript 函式節點和關係
      */
-    private void createJavaScriptFunctionNodes(JspStructureAnalyzerService.JspAnalysisResult analysisResult,
+    private void createJavaScriptFunctionNodes(JspAnalysisResult analysisResult,
             JspKnowledgeGraph graph, PageNode pageNode) {
 
-        for (JspStructureAnalyzerService.JavaScriptFunction jsFunction : analysisResult.getJavascriptFunctions()) {
+        for (kai.javaparser.jsp.model.JavaScriptFunction jsFunction : analysisResult.getJavascriptFunctions()) {
             // 建立 JavaScript 函式節點
             JavaScriptFunctionNode functionNode = new JavaScriptFunctionNode(
                     "js_" + jsFunction.getName(),
@@ -210,20 +211,20 @@ public class JspKnowledgeGraphBuilder {
     /**
      * 建立後端方法節點
      */
-    private void createBackendMethodNodes(JspStructureAnalyzerService.JspAnalysisResult analysisResult,
+    private void createBackendMethodNodes(JspAnalysisResult analysisResult,
             JspKnowledgeGraph graph) {
 
         Set<String> methodNames = new HashSet<>();
 
         // 從 JSF 元件收集方法名稱
-        for (JspStructureAnalyzerService.JsfComponent jsfComponent : analysisResult.getJsfComponents()) {
+        for (kai.javaparser.jsp.model.JsfComponent jsfComponent : analysisResult.getJsfComponents()) {
             if (jsfComponent.getAction() != null && !jsfComponent.getAction().isEmpty()) {
                 methodNames.add(jsfComponent.getAction());
             }
         }
 
         // 從 JavaScript 函式收集 AJAX 呼叫
-        for (JspStructureAnalyzerService.JavaScriptFunction jsFunction : analysisResult.getJavascriptFunctions()) {
+        for (kai.javaparser.jsp.model.JavaScriptFunction jsFunction : analysisResult.getJavascriptFunctions()) {
             methodNames.addAll(jsFunction.getAjaxCalls());
         }
 
@@ -245,13 +246,13 @@ public class JspKnowledgeGraphBuilder {
     /**
      * 建立 DOM 元素節點
      */
-    private void createDomElementNodes(JspStructureAnalyzerService.JspAnalysisResult analysisResult,
+    private void createDomElementNodes(JspAnalysisResult analysisResult,
             JspKnowledgeGraph graph) {
 
         Set<String> elementIds = new HashSet<>();
 
         // 從 JavaScript 函式收集互動的元素 ID
-        for (JspStructureAnalyzerService.JavaScriptFunction jsFunction : analysisResult.getJavascriptFunctions()) {
+        for (kai.javaparser.jsp.model.JavaScriptFunction jsFunction : analysisResult.getJavascriptFunctions()) {
             // 這裡可以從 AI 分析結果中獲取更詳細的互動元素
             // 暫時使用基本的方法
             elementIds.addAll(extractElementIdsFromFunction(jsFunction.getContent()));
@@ -272,7 +273,7 @@ public class JspKnowledgeGraphBuilder {
     /**
      * 建立外部依賴關係
      */
-    private void createExternalDependencyRelationships(JspStructureAnalyzerService.JspAnalysisResult analysisResult,
+    private void createExternalDependencyRelationships(JspAnalysisResult analysisResult,
             JspKnowledgeGraph graph, PageNode pageNode) {
 
         for (String jsReference : analysisResult.getExternalJsReferences()) {

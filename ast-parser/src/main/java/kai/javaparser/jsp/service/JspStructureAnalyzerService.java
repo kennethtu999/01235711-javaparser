@@ -10,8 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import lombok.Getter;
-import lombok.Setter;
+import kai.javaparser.jsp.model.JspAnalysisResult;
+import kai.javaparser.jsp.model.JsfComponent;
+import kai.javaparser.jsp.model.JavaScriptFunction;
 
 /**
  * JSP 結構化分析服務
@@ -297,38 +298,4 @@ public class JspStructureAnalyzerService {
         }
     }
 
-    // 資料模型類別
-    @Getter
-    @Setter
-    public static class JspAnalysisResult {
-        private String fileName;
-        private Date analysisTimestamp;
-        private String pagecodeClass;
-        private List<JsfComponent> jsfComponents = new ArrayList<>();
-        private List<JavaScriptFunction> javascriptFunctions = new ArrayList<>();
-        private List<String> externalJsReferences = new ArrayList<>();
-        private String error;
-    }
-
-    @Getter
-    @Setter
-    public static class JsfComponent {
-        private String id;
-        private String type;
-        private String action;
-        private String eventType;
-        private int lineNumber;
-    }
-
-    @Getter
-    @Setter
-    public static class JavaScriptFunction {
-        private String name;
-        private String content;
-        private int lineNumber;
-        private boolean containsAjaxCall = false;
-        private boolean containsNavigation = false;
-        private List<String> ajaxCalls = new ArrayList<>();
-        private String aiAnalysis;
-    }
 }
