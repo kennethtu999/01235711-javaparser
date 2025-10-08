@@ -1,4 +1,4 @@
-package kai.javaparser.model;
+package kai.javaparser.ast.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;

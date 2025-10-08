@@ -13,8 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import kai.javaparser.ast.model.FileAstData;
 import kai.javaparser.diagram.idx.AstIndex;
-import kai.javaparser.model.FileAstData;
 
 /**
  * 檔案系統原始碼提供者

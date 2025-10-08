@@ -1,4 +1,4 @@
-package kai.javaparser.model;
+package kai.javaparser.ast.model;
 
 /**
  * 輸出類型枚舉

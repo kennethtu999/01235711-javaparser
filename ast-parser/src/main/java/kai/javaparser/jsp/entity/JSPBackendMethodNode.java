@@ -79,6 +79,10 @@ public class JSPBackendMethodNode {
     @Property("maintainabilityNotes")
     private String maintainabilityNotes;
 
+    // AST 連結相關屬性
+    @Property("linkedAstMethodId")
+    private String linkedAstMethodId;
+
     // 關係定義
     @Relationship(type = "TRIGGERS", direction = Relationship.Direction.OUTGOING)
     private List<Object> triggers;
@@ -130,5 +134,18 @@ public class JSPBackendMethodNode {
             dependsOn = new java.util.ArrayList<>();
         }
         dependsOn.add(target);
+    }
+
+    // 簡單的連結管理方法
+    public void linkToAstMethod(String astMethodId) {
+        this.linkedAstMethodId = astMethodId;
+    }
+
+    public void unlinkFromAstMethod() {
+        this.linkedAstMethodId = null;
+    }
+
+    public boolean isLinkedToAst() {
+        return linkedAstMethodId != null;
     }
 }

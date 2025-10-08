@@ -7,14 +7,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import kai.javaparser.ast.model.FieldInfo;
+import kai.javaparser.ast.model.FileAstData;
+import kai.javaparser.ast.model.MethodGroup;
 import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.diagram.idx.AstIndex;
-import kai.javaparser.model.FieldInfo;
-import kai.javaparser.model.FileAstData;
-import kai.javaparser.model.MethodGroup;
 import kai.javaparser.service.SourceCodeWeaver;
-import kai.javaparser.service.SourceCodeWeaver.WeavingResult;
-import kai.javaparser.service.SourceCodeWeaver.WeavingRules;
 
 /**
  * 基於JDT的原始碼編織器

@@ -11,11 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import kai.javaparser.diagram.SequenceOutputConfig;
-import kai.javaparser.ast.service.CodeExtractorService.CodeExtractionRequest;
-import kai.javaparser.ast.service.CodeExtractorService.CodeExtractionResult;
+import kai.javaparser.ast.model.ProcessRequest;
 import kai.javaparser.diagram.DiagramService;
-import kai.javaparser.model.ProcessRequest;
+import kai.javaparser.diagram.SequenceOutputConfig;
 import kai.javaparser.util.ParameterExtractor;
 import kai.javaparser.util.TempDirectoryUtil;
 

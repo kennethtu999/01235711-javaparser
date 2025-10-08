@@ -12,7 +12,7 @@ import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.TypeLiteral;
 
-import kai.javaparser.model.AnnotationInfo;
+import kai.javaparser.ast.model.AnnotationInfo;
 
 /**
  * 註解提取工具類

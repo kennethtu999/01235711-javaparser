@@ -23,7 +23,7 @@ spring:
 
   # Neo4j 數據庫配置
   neo4j:
-    uri: ${NEO4J_URI:bolt://localhost:7687}
+    uri: ${NEO4J_URI:bolt://127.0.0.1:7687}
     authentication:
       username: ${NEO4J_USERNAME:neo4j}
       password: ${NEO4J_PASSWORD:12345678qwertyui}

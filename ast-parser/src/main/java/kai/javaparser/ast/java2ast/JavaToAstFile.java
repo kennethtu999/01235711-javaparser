@@ -20,10 +20,10 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import kai.javaparser.model.AnnotationInfo;
-import kai.javaparser.model.FieldInfo;
-import kai.javaparser.model.FileAstData;
-import kai.javaparser.model.SequenceDiagramData;
+import kai.javaparser.ast.model.AnnotationInfo;
+import kai.javaparser.ast.model.FieldInfo;
+import kai.javaparser.ast.model.FileAstData;
+import kai.javaparser.ast.model.SequenceDiagramData;
 import kai.javaparser.util.AnnotationExtractor;
 
 public class JavaToAstFile {

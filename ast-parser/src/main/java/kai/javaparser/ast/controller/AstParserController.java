@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import kai.javaparser.ast.model.ProcessRequest;
 import kai.javaparser.ast.service.AstParserService;
 import kai.javaparser.ast.service.CodeExtractorService;
 import kai.javaparser.ast.service.ProjectBuildService;
@@ -32,7 +33,6 @@ import kai.javaparser.ast.service.TaskManagementService.TaskInfo;
 import kai.javaparser.configuration.AppConfig;
 import kai.javaparser.diagram.DiagramService;
 import kai.javaparser.diagram.SequenceOutputConfig;
-import kai.javaparser.model.ProcessRequest;
 import kai.javaparser.util.TempDirectoryUtil;
 
 /**

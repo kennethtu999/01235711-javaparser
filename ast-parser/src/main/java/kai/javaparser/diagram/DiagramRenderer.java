@@ -1,6 +1,6 @@
 package kai.javaparser.diagram;
 
-import kai.javaparser.model.TraceResult;
+import kai.javaparser.ast.model.TraceResult;
 
 /**
  * 圖表渲染器介面

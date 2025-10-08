@@ -26,10 +26,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kai.javaparser.ast.controller.AstParserController.DiagramRequest;
+import kai.javaparser.ast.model.ProcessRequest;
 import kai.javaparser.ast.service.CodeExtractorService;
 import kai.javaparser.ast.service.CodeExtractorService.CodeExtractionRequest;
 import kai.javaparser.ast.service.CodeExtractorService.CodeExtractionResult;
-import kai.javaparser.model.ProcessRequest;
 import kai.javaparser.service.AiSummaryService;
 import kai.javaparser.service.AiSummaryService.SummaryData;
 

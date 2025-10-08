@@ -6,8 +6,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import kai.javaparser.ast.model.FileAstData;
 import kai.javaparser.ast.repository.AstRepository;
-import kai.javaparser.model.FileAstData;
 
 /**
  * 管理專案中所有類別的 AST 索引。

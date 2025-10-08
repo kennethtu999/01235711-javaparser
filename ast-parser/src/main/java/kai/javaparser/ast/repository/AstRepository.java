@@ -3,7 +3,7 @@ package kai.javaparser.ast.repository;
 import java.io.IOException;
 import java.util.List;
 
-import kai.javaparser.model.FileAstData;
+import kai.javaparser.ast.model.FileAstData;
 
 /**
  * AST 資料儲存抽象介面

@@ -2,8 +2,11 @@ package kai.javaparser.jsp.factory;
 
 import org.springframework.stereotype.Component;
 
-import kai.javaparser.jsp.entity.*;
-import kai.javaparser.model.JspKnowledgeGraph;
+import kai.javaparser.jsp.entity.JSPBackendMethodNode;
+import kai.javaparser.jsp.entity.JSPComponentNode;
+import kai.javaparser.jsp.entity.JSPFileNode;
+import kai.javaparser.jsp.entity.Neo4jJspNode;
+import kai.javaparser.jsp.model.JspKnowledgeGraph;
 
 /**
  * JSP 節點工廠

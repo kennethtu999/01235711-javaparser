@@ -21,9 +21,9 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 import kai.javaparser.ast.java2ast.handler.ControlFlowHandler;
 import kai.javaparser.ast.java2ast.handler.HandlerContext;
 import kai.javaparser.ast.java2ast.handler.InvocationHandler;
-import kai.javaparser.model.AnnotationInfo;
-import kai.javaparser.model.MethodGroup;
-import kai.javaparser.model.SequenceDiagramData;
+import kai.javaparser.ast.model.AnnotationInfo;
+import kai.javaparser.ast.model.MethodGroup;
+import kai.javaparser.ast.model.SequenceDiagramData;
 import kai.javaparser.util.AnnotationExtractor;
 
 /**

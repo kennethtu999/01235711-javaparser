@@ -2,14 +2,14 @@ package kai.javaparser.diagram;
 
 import java.util.List;
 
+import kai.javaparser.ast.model.AnnotationInfo;
+import kai.javaparser.ast.model.ControlFlowFragment;
+import kai.javaparser.ast.model.DiagramNode;
+import kai.javaparser.ast.model.FileAstData;
+import kai.javaparser.ast.model.InteractionModel;
+import kai.javaparser.ast.model.TraceResult;
 import kai.javaparser.diagram.idx.AstIndex;
 import kai.javaparser.diagram.output.MermaidOutput;
-import kai.javaparser.model.AnnotationInfo;
-import kai.javaparser.model.ControlFlowFragment;
-import kai.javaparser.model.DiagramNode;
-import kai.javaparser.model.FileAstData;
-import kai.javaparser.model.InteractionModel;
-import kai.javaparser.model.TraceResult;
 
 /**
  * Mermaid 渲染器：

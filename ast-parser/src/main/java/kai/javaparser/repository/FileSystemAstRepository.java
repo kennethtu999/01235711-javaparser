@@ -21,8 +21,8 @@ import org.springframework.stereotype.Repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
+import kai.javaparser.ast.model.FileAstData;
 import kai.javaparser.ast.repository.AstRepository;
-import kai.javaparser.model.FileAstData;
 
 /**
  * 基於檔案系統的 AST 資料儲存實現

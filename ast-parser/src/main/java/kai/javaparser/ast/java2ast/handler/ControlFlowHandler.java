@@ -6,7 +6,7 @@ import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
-import kai.javaparser.model.ControlFlowFragment;
+import kai.javaparser.ast.model.ControlFlowFragment;
 
 /**
  * ControlFlowHandler 專門處理 if, for, while 等控制流邏輯

@@ -17,12 +17,12 @@ import kai.javaparser.jsp.entity.JSPComponentNode;
 import kai.javaparser.jsp.entity.JSPFileNode;
 import kai.javaparser.jsp.entity.Neo4jJspNode;
 import kai.javaparser.jsp.factory.JSPNodeFactory;
+import kai.javaparser.jsp.model.JspKnowledgeGraph;
 import kai.javaparser.jsp.repository.JSPBackendMethodRepository;
 import kai.javaparser.jsp.repository.JSPComponentRepository;
 import kai.javaparser.jsp.repository.JSPFileRepository;
 import kai.javaparser.jsp.repository.Neo4jJspNodeRepository;
 import kai.javaparser.jsp.repository.vo.NodeTypeCount;
-import kai.javaparser.model.JspKnowledgeGraph;
 
 /**
  * Neo4j JSP 儲存服務

@@ -8,17 +8,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import kai.javaparser.model.JspKnowledgeGraph;
-import kai.javaparser.model.JspKnowledgeGraph.BackendMethodNode;
-import kai.javaparser.model.JspKnowledgeGraph.ContainsRelationship;
-import kai.javaparser.model.JspKnowledgeGraph.DependsOnRelationship;
-import kai.javaparser.model.JspKnowledgeGraph.DomElementNode;
-import kai.javaparser.model.JspKnowledgeGraph.InteractsWithRelationship;
-import kai.javaparser.model.JspKnowledgeGraph.JavaScriptFunctionNode;
-import kai.javaparser.model.JspKnowledgeGraph.JsfComponentNode;
-import kai.javaparser.model.JspKnowledgeGraph.JspNode;
-import kai.javaparser.model.JspKnowledgeGraph.PageNode;
-import kai.javaparser.model.JspKnowledgeGraph.TriggersRelationship;
+import kai.javaparser.jsp.model.JspKnowledgeGraph;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.BackendMethodNode;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.ContainsRelationship;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.DependsOnRelationship;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.DomElementNode;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.InteractsWithRelationship;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.JavaScriptFunctionNode;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.JsfComponentNode;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.JspNode;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.PageNode;
+import kai.javaparser.jsp.model.JspKnowledgeGraph.TriggersRelationship;
 
 /**
  * JSP 知識圖譜建構器

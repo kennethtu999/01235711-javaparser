@@ -12,8 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 
-import kai.javaparser.model.JspKnowledgeGraph;
-import kai.javaparser.jsp.service.Neo4jJspStorageService;
+import kai.javaparser.jsp.model.JspKnowledgeGraph;
 
 /**
  * Neo4j 整合測試
@@ -30,6 +29,9 @@ public class JspStructureAnalyzerServiceTest {
     @Autowired
     private Neo4jJspStorageService storageService;
 
+    @Autowired
+    private JspAstLinkService jspAstLinkService;
+
     @BeforeEach
     void setUp() {
         // 清理測試數據
@@ -41,7 +43,7 @@ public class JspStructureAnalyzerServiceTest {
     }
 
     @Test
-    public void testAddAll() {
+    public void testStep2AddAll() {
         // 分析 JSP 內容
         var analysisResult = analyzerService.analyzeJspFile(
                 "/Users/kenneth/git/01235711/01235711-javaparser/temp/cacq002/CACQ002_1.jsp", "CACQ002_1.jsp");
@@ -55,7 +57,12 @@ public class JspStructureAnalyzerServiceTest {
     }
 
     @Test
-    void testCleanAll() {
+    public void testStep3AddJspAstLink() {
+        jspAstLinkService.linkAllJspBackendMethods();
+    }
+
+    @Test
+    void testStep1CleanAll() {
         // 獲取清理前的統計信息
         Map<String, Object> beforeStats = storageService.getDatabaseStatistics();
         long beforeNodes = beforeStats.get("totalNodes") != null ? ((Number) beforeStats.get("totalNodes")).longValue()

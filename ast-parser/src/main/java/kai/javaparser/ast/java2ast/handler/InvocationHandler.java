@@ -14,7 +14,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import kai.javaparser.model.InteractionModel;
+import kai.javaparser.ast.model.InteractionModel;
 
 /**
  * InvocationHandler 專門處理 MethodInvocation, ConstructorInvocation,

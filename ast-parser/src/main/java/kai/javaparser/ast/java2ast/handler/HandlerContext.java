@@ -1,10 +1,15 @@
 package kai.javaparser.ast.java2ast.handler;
 
-import kai.javaparser.model.*;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
+
 import org.eclipse.jdt.core.dom.ASTNode; // Import ASTNode
+import org.eclipse.jdt.core.dom.CompilationUnit;
+
+import kai.javaparser.ast.model.ControlFlowFragment;
+import kai.javaparser.ast.model.InteractionModel;
+import kai.javaparser.ast.model.MethodGroup;
+import kai.javaparser.ast.model.SequenceDiagramData;
 
 /**
  * HandlerContext 用於存放所有 Visitor 在遍歷期間需要共享的狀態

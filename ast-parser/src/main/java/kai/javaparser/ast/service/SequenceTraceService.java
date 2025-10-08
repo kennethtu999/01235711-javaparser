@@ -12,15 +12,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import kai.javaparser.ast.model.ControlFlowFragment;
+import kai.javaparser.ast.model.DiagramNode;
+import kai.javaparser.ast.model.FileAstData;
+import kai.javaparser.ast.model.InteractionModel;
+import kai.javaparser.ast.model.MethodGroup;
+import kai.javaparser.ast.model.TraceResult;
 import kai.javaparser.diagram.AstClassUtil;
 import kai.javaparser.diagram.SequenceOutputConfig;
 import kai.javaparser.diagram.idx.AstIndex;
-import kai.javaparser.model.ControlFlowFragment;
-import kai.javaparser.model.DiagramNode;
-import kai.javaparser.model.FileAstData;
-import kai.javaparser.model.InteractionModel;
-import kai.javaparser.model.MethodGroup;
-import kai.javaparser.model.TraceResult;
 
 /**
  * 序列追蹤服務：

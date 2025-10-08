@@ -1,4 +1,4 @@
-package kai.javaparser.model;
+package kai.javaparser.jsp.model;
 
 import java.util.*;
 import java.util.stream.Collectors;
