@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.io.File;
 import java.io.FileWriter;
 import java.nio.file.Paths;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,16 +57,15 @@ public class JspControllerTest {
 
         // 初始化測試數據 - 使用真實的測試 JSP 檔案
         String currentProjectDir = Paths.get("").toAbsolutePath().toString();
-        String jspFilePath = currentProjectDir + "/../temp/cacq002/CACQ002_1.jsp";
-        String jspFileName = "CACQ002_1.jsp";
+        String jspBaseFolder = currentProjectDir + "/../temp/cacq002";
 
         jspAnalysisRequest = new JspAnalysisRequest();
-        jspAnalysisRequest.setFilePath(jspFilePath);
-        jspAnalysisRequest.setFileName(jspFileName);
+        jspAnalysisRequest.setFilePath(jspBaseFolder);
+        jspAnalysisRequest.setFileExtensions(Set.of(".jsp", ".faces"));
 
-        logger.info("設置 jspAnalysisRequest: filePath={}, fileName={}",
+        logger.info("設置 jspAnalysisRequest: filePath={}, fileExtensions={}",
                 jspAnalysisRequest.getFilePath(),
-                jspAnalysisRequest.getFileName());
+                jspAnalysisRequest.getFileExtensions());
 
         logger.info("=== JspController 測試數據設置完成 ===");
     }

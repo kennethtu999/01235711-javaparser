@@ -62,12 +62,12 @@ public class JspController {
     })
     @PostMapping("/parse")
     public ResponseEntity<JspParseResponse> parseJspFile(
-            @Parameter(description = "JSP 分析請求，包含檔案路徑和檔案名稱", required = true, example = "{\"filePath\": \"/path/to/file.jsp\", \"fileName\": \"file.jsp\"}") @RequestBody JspAnalysisRequest request) {
+            @Parameter(description = "JSP 分析請求，包含檔案路徑或資料夾路徑", required = true, example = "{\"filePath\": \"/path/to/folder\", \"fileExtensions\": [\".jsp\", \".faces\"]}") @RequestBody JspAnalysisRequest request) {
         try {
             logger.info("收到 JSP 解析請求: {}", request);
 
             // 啟動非同步解析任務
-            var future = parseJspFileAsync(request.getFilePath(), request.getFileName());
+            var future = parseJspFileAsync(request.getFilePath(), request.getFileName(), request.getFileExtensions());
 
             // 創建任務並立即返回任務ID
             String taskId = taskManagementService.createTask(future);
@@ -152,13 +152,33 @@ public class JspController {
     }
 
     /**
-     * 非同步解析 JSP 檔案
+     * 非同步解析 JSP 檔案或資料夾
      */
     @org.springframework.scheduling.annotation.Async
-    public java.util.concurrent.CompletableFuture<String> parseJspFileAsync(String filePath, String fileName) {
+    public java.util.concurrent.CompletableFuture<String> parseJspFileAsync(String filePath, String fileName,
+            java.util.Set<String> fileExtensions) {
         try {
-            logger.info("開始解析 JSP 檔案: {}", fileName);
+            if (fileName != null && !fileName.isEmpty()) {
+                // 單一檔案模式
+                logger.info("開始解析單一 JSP 檔案: {}", fileName);
+                return parseSingleJspFile(filePath, fileName);
+            } else {
+                // 資料夾模式
+                logger.info("開始解析 JSP 資料夾: {}", filePath);
+                return parseJspFolder(filePath, fileExtensions);
+            }
 
+        } catch (Exception e) {
+            logger.error("非同步解析 JSP 失敗", e);
+            return java.util.concurrent.CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * 解析單一 JSP 檔案
+     */
+    private java.util.concurrent.CompletableFuture<String> parseSingleJspFile(String filePath, String fileName) {
+        try {
             // 1. 分析 JSP 檔案
             JspAnalysisResult result = analyzerService.analyzeJspFile(filePath, fileName);
             logger.info("JSP 分析完成: {} - 找到 {} 個 JSF 元件, {} 個 JS 函式",
@@ -182,8 +202,112 @@ public class JspController {
             return java.util.concurrent.CompletableFuture.completedFuture(resultMessage);
 
         } catch (Exception e) {
-            logger.error("非同步解析 JSP 檔案失敗", e);
+            logger.error("解析單一 JSP 檔案失敗: {}", fileName, e);
             return java.util.concurrent.CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * 解析 JSP 資料夾
+     */
+    private java.util.concurrent.CompletableFuture<String> parseJspFolder(String folderPath,
+            java.util.Set<String> fileExtensions) {
+        try {
+            java.io.File folder = new java.io.File(folderPath);
+            if (!folder.exists() || !folder.isDirectory()) {
+                throw new IllegalArgumentException("資料夾不存在或不是有效目錄: " + folderPath);
+            }
+
+            java.util.List<java.io.File> jspFiles = findJspFiles(folder, fileExtensions);
+            logger.info("在資料夾 {} 中找到 {} 個 JSP 檔案", folderPath, jspFiles.size());
+
+            int totalNodes = 0;
+            int totalRelationships = 0;
+            int totalJsfComponents = 0;
+            int totalJavascriptFunctions = 0;
+            int processedFiles = 0;
+
+            for (java.io.File jspFile : jspFiles) {
+                try {
+                    logger.info("處理檔案: {}", jspFile.getName());
+
+                    // 1. 分析 JSP 檔案
+                    JspAnalysisResult result = analyzerService.analyzeJspFile(jspFile.getParent(), jspFile.getName());
+
+                    // 2. 建構知識圖譜並存儲
+                    var graphBuilder = new kai.javaparser.jsp.service.JspKnowledgeGraphBuilder();
+                    var knowledgeGraph = graphBuilder.buildKnowledgeGraph(result);
+                    int savedNodes = storageService.saveKnowledgeGraph(knowledgeGraph);
+
+                    totalNodes += savedNodes;
+                    totalRelationships += knowledgeGraph.getRelationships().size();
+                    totalJsfComponents += result.getJsfComponents().size();
+                    totalJavascriptFunctions += result.getJavascriptFunctions().size();
+                    processedFiles++;
+
+                    logger.info("檔案 {} 處理完成 - 存儲了 {} 個節點, {} 個關係",
+                            jspFile.getName(), savedNodes, knowledgeGraph.getRelationships().size());
+
+                } catch (Exception e) {
+                    logger.error("處理檔案失敗: {}", jspFile.getName(), e);
+                    // 繼續處理其他檔案
+                }
+            }
+
+            String resultMessage = String.format(
+                    "JSP 資料夾解析完成: %s - 處理了 %d 個檔案, 總共存儲了 %d 個節點, %d 個關係, %d 個 JSF 元件, %d 個 JS 函式",
+                    folderPath,
+                    processedFiles,
+                    totalNodes,
+                    totalRelationships,
+                    totalJsfComponents,
+                    totalJavascriptFunctions);
+
+            logger.info(resultMessage);
+            return java.util.concurrent.CompletableFuture.completedFuture(resultMessage);
+
+        } catch (Exception e) {
+            logger.error("解析 JSP 資料夾失敗: {}", folderPath, e);
+            return java.util.concurrent.CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * 遞歸查找 JSP 檔案
+     */
+    private java.util.List<java.io.File> findJspFiles(java.io.File folder, java.util.Set<String> fileExtensions) {
+        java.util.List<java.io.File> jspFiles = new java.util.ArrayList<>();
+
+        if (fileExtensions == null || fileExtensions.isEmpty()) {
+            fileExtensions = java.util.Set.of(".jsp", ".faces");
+        }
+
+        findJspFilesRecursive(folder, fileExtensions, jspFiles);
+        return jspFiles;
+    }
+
+    /**
+     * 遞歸查找 JSP 檔案的輔助方法
+     */
+    private void findJspFilesRecursive(java.io.File folder, java.util.Set<String> fileExtensions,
+            java.util.List<java.io.File> jspFiles) {
+        java.io.File[] files = folder.listFiles();
+        if (files != null) {
+            for (java.io.File file : files) {
+                if (file.isDirectory()) {
+                    // 遞歸處理子資料夾
+                    findJspFilesRecursive(file, fileExtensions, jspFiles);
+                } else if (file.isFile()) {
+                    // 檢查檔案副檔名
+                    String fileName = file.getName().toLowerCase();
+                    for (String extension : fileExtensions) {
+                        if (fileName.endsWith(extension.toLowerCase())) {
+                            jspFiles.add(file);
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 

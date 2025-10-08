@@ -66,10 +66,10 @@ public class AstParserControllerTest {
         String currentProjectDir = Paths.get("").toAbsolutePath().toString();
 
         // TODO 可以改變要測試的專案
-        String projectPath = currentProjectDir + "/../test-project";
-        String methodFqn = "com.example.case2.CASEMain2.initViewForm()";
-        // String projectPath = "/Users/kenneth/git/sc";
-        // String methodFqn = "pagecode.cac.cacq001.CACQ001_1.initViewForm()";
+        // String projectPath = currentProjectDir + "/../test-project";
+        // String methodFqn = "com.example.case2.CASEMain2.initViewForm()";
+        String projectPath = "/Users/kenneth/git/sc";
+        String methodFqn = "pagecode.cac.cacq001.CACQ001_1.initViewForm()";
 
         // 清理並重新建立測試目錄
         setupTestDirectory();
