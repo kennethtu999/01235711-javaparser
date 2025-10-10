@@ -8,7 +8,7 @@
     </appender>
 
     <!-- 特別為 kai 包設置 DEBUG 級別，同時輸出到 console 和文件 -->
-    <logger name="kai" level="DEBUG" additivity="false">
+    <logger name="kai" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE" />
     </logger>
 

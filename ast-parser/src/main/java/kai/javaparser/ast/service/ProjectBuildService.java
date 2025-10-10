@@ -22,7 +22,10 @@ import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.eclipse.EclipseProject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import kai.javaparser.ast.configuration.EnvConfiguration;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -42,6 +45,9 @@ public class ProjectBuildService {
     private static final Map<String, String> ECLIPSE_PATH_VARIABLES = Map.of(
             "M2_REPO", System.getProperty("user.home") + File.separator + ".m2" + File.separator + "repository");
 
+    @Autowired
+    private EnvConfiguration envConfiguration;
+
     private enum ProjectType {
         GRADLE, MAVEN, ECLIPSE, UNKNOWN
     }
@@ -54,6 +60,8 @@ public class ProjectBuildService {
      */
     public BuildResult buildProject(Path projectRoot) throws Exception {
         logger.info("開始建置專案: {}", projectRoot);
+        logger.info("使用 Java 環境 - JAVA_HOME: {}, Java 版本: {}",
+                envConfiguration.getJavaHome(), envConfiguration.getJavaVersion());
 
         ProjectType type = detectProjectType(projectRoot);
         if (type == ProjectType.UNKNOWN) {
@@ -114,9 +122,18 @@ public class ProjectBuildService {
                     .forProjectDirectory(gradleProjectRoot.toFile())
                     .connect();
 
-            logger.info("執行 Gradle 'build' 任務，這可能需要一些時間...");
-            connection.newBuild().forTasks("build").withArguments("-x", "test").run(); // 跳過測試以加快速度
-            logger.info("Gradle build 任務完成");
+            // 檢查是否有 gradlew 可用
+            Path gradlewPath = findGradleWrapper(gradleProjectRoot);
+
+            if (gradlewPath != null) {
+                logger.info("找到 Gradle Wrapper: {}，使用 gradlew 建置專案", gradlewPath);
+                buildWithGradleWrapper(gradleProjectRoot, gradlewPath);
+            } else {
+                logger.info("未找到 Gradle Wrapper，使用 Gradle Tooling API 建置專案");
+                logger.info("執行 Gradle 'build' 任務，這可能需要一些時間...");
+                connection.newBuild().forTasks("build").withArguments("-x", "test").run(); // 跳過測試以加快速度
+                logger.info("Gradle build 任務完成");
+            }
 
             EclipseProject rootEclipseProject = connection.getModel(EclipseProject.class);
             collectGradleProjectInfo(rootEclipseProject, sourceRoots, projectClasspath);
@@ -125,6 +142,76 @@ public class ProjectBuildService {
             if (connection != null) {
                 connection.close();
             }
+        }
+    }
+
+    /**
+     * 尋找 Gradle Wrapper
+     */
+    private Path findGradleWrapper(Path projectRoot) {
+        // 檢查 gradlew (Unix/Linux/macOS)
+        Path gradlew = projectRoot.resolve("gradlew");
+        if (Files.exists(gradlew) && Files.isExecutable(gradlew)) {
+            return gradlew;
+        }
+
+        // 檢查 gradlew.bat (Windows)
+        Path gradlewBat = projectRoot.resolve("gradlew.bat");
+        if (Files.exists(gradlewBat)) {
+            return gradlewBat;
+        }
+
+        return null;
+    }
+
+    /**
+     * 使用 Gradle Wrapper 建置專案
+     */
+    private void buildWithGradleWrapper(Path projectRoot, Path gradlewPath) throws Exception {
+        logger.info("使用 Gradle Wrapper 建置專案: {}", gradlewPath);
+
+        // 準備命令
+        List<String> command;
+        if (gradlewPath.toString().endsWith(".bat")) {
+            command = Arrays.asList(gradlewPath.toString(), "build", "-x", "test");
+        } else {
+            command = Arrays.asList("./" + gradlewPath.getFileName().toString(), "build", "-x", "test");
+        }
+
+        // 設定環境變數
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.directory(projectRoot.toFile());
+        pb.redirectErrorStream(true);
+
+        // 設定 Java 環境
+        String javaHome = envConfiguration.getJavaHome();
+        if (javaHome != null) {
+            pb.environment().put("JAVA_HOME", javaHome);
+            logger.info("設定 JAVA_HOME 環境變數: {}", javaHome);
+        }
+
+        // 設定 Gradle 選項
+        String gradleOpts = envConfiguration.getGradleOpts();
+        if (gradleOpts != null) {
+            pb.environment().put("GRADLE_OPTS", gradleOpts);
+            logger.info("設定 GRADLE_OPTS 環境變數: {}", gradleOpts);
+        }
+
+        // 執行建置
+        Process process = pb.start();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                logger.debug("[Gradle Wrapper 輸出]: {}", line);
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            logger.warn("Gradle Wrapper 建置完成，但退出碼為: {}。專案可能未完全建置成功。", exitCode);
+        } else {
+            logger.info("Gradle Wrapper 建置成功完成");
         }
     }
 
@@ -206,6 +293,13 @@ public class ProjectBuildService {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(mavenProjectRoot.toFile());
         pb.redirectErrorStream(true);
+
+        // 設定 Java 環境
+        String javaHome = envConfiguration.getJavaHome();
+        if (javaHome != null) {
+            pb.environment().put("JAVA_HOME", javaHome);
+            logger.info("設定 JAVA_HOME 環境變數: {}", javaHome);
+        }
 
         Process p = pb.start();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {

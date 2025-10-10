@@ -195,7 +195,7 @@ public class JavaToAstFile {
             }
         }
 
-        logger.info("提取到 {} 個 fields", fields.size());
+        logger.debug("提取到 {} 個 fields", fields.size());
         return fields;
     }
 

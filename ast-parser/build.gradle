@@ -66,6 +66,9 @@ dependencies {
     // Gradle Tooling API for testing
     implementation gradleApi()
 
+    // Environment Java library for .env file support
+    implementation 'io.github.cdimascio:dotenv-java:3.2.0'
+
     // Test dependencies
     testCompileOnly 'org.projectlombok:lombok:1.18.36'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.36'
