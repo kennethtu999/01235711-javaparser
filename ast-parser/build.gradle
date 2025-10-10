@@ -23,6 +23,12 @@ compileTestJava {
 
 configurations {
     gradleApi.extendsFrom implementation
+    
+    // Exclude Gradle's SLF4J implementation to avoid conflicts with Logback
+    all {
+        exclude group: 'org.slf4j', module: 'slf4j-simple'
+        exclude group: 'org.slf4j', module: 'slf4j-nop'
+    }
 }
 
 dependencies {
@@ -104,6 +110,11 @@ tasks.test {
         showCauses = true
         showStackTraces = true
     }
+    
+    // Force Spring Boot to use a different logging system to avoid conflicts
+    systemProperty 'spring.main.banner-mode', 'off'
+    systemProperty 'logging.level.org.springframework', 'WARN'
+    systemProperty 'logging.level.org.gradle', 'WARN'
 }
 
 // Configure Spring Boot

@@ -210,6 +210,7 @@ public class ProjectBuildService {
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             logger.warn("Gradle Wrapper 建置完成，但退出碼為: {}。專案可能未完全建置成功。", exitCode);
+            throw new RuntimeException("Gradle Wrapper 建置失敗，退出碼為: " + exitCode);
         } else {
             logger.info("Gradle Wrapper 建置成功完成");
         }
