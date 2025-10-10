@@ -76,6 +76,11 @@ public class JavaToAstFile {
             String fqn = findClassFqn(cu);
             sequenceData.setClassFqn(fqn);
 
+            // 設置類別類型
+            String classType = detectClassType(cu);
+            sequenceData.setClassType(classType);
+            logger.debug("檢測到類別類型: {} for {}", classType, fqn);
+
             // 提取類別級別的註解
             extractClassAnnotations(cu, sequenceData);
 
@@ -123,6 +128,43 @@ public class JavaToAstFile {
             }
         }
         return "unknown";
+    }
+
+    /**
+     * 檢測類別類型
+     * 
+     * @param cu CompilationUnit
+     * @return 類別類型: "Class", "AbstractClass", "Interface"
+     */
+    private String detectClassType(CompilationUnit cu) {
+        for (Object typeDecl : cu.types()) {
+            if (typeDecl instanceof TypeDeclaration) {
+                TypeDeclaration type = (TypeDeclaration) typeDecl;
+                String className = type.getName().getIdentifier();
+
+                // 檢查是否為介面
+                if (type.isInterface()) {
+                    logger.debug("檢測到介面: {}", className);
+                    return "Interface";
+                }
+
+                // 檢查是否為抽象類別
+                @SuppressWarnings("unchecked")
+                List<org.eclipse.jdt.core.dom.Modifier> modifiers = type.modifiers();
+                for (org.eclipse.jdt.core.dom.Modifier modifier : modifiers) {
+                    if (modifier.isAbstract()) {
+                        logger.debug("檢測到抽象類別: {}", className);
+                        return "AbstractClass";
+                    }
+                }
+
+                // 預設為一般類別
+                logger.debug("檢測到一般類別: {}", className);
+                return "Class";
+            }
+        }
+        logger.debug("未找到類型宣告，使用預設值: Class");
+        return "Class"; // 預設值
     }
 
     /**

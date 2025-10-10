@@ -16,6 +16,7 @@ import lombok.Setter;
 @Setter
 public class SequenceDiagramData {
     private String classFqn; // 入口方法
+    private String classType; // 類別類型: "Class", "AbstractClass", "Interface"
     private List<MethodGroup> methodGroups; // 按方法分組的互動列表
     private List<AnnotationInfo> classAnnotations; // 類別上的註解
 
