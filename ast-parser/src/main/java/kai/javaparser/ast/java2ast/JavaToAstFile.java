@@ -150,11 +150,14 @@ public class JavaToAstFile {
 
                 // 檢查是否為抽象類別
                 @SuppressWarnings("unchecked")
-                List<org.eclipse.jdt.core.dom.Modifier> modifiers = type.modifiers();
-                for (org.eclipse.jdt.core.dom.Modifier modifier : modifiers) {
-                    if (modifier.isAbstract()) {
-                        logger.debug("檢測到抽象類別: {}", className);
-                        return "AbstractClass";
+                List<Object> modifiers = type.modifiers();
+                for (Object modifierObj : modifiers) {
+                    if (modifierObj instanceof org.eclipse.jdt.core.dom.Modifier) {
+                        org.eclipse.jdt.core.dom.Modifier modifier = (org.eclipse.jdt.core.dom.Modifier) modifierObj;
+                        if (modifier.isAbstract()) {
+                            logger.debug("檢測到抽象類別: {}", className);
+                            return "AbstractClass";
+                        }
                     }
                 }
 
