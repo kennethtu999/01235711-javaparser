@@ -74,11 +74,6 @@ public class AstToGraphUtil {
         methodNode.setLineNumber(startLine);
         methodNode.setColumnNumber(0);
         methodNode.setBodyLength(endLine - startLine + 1);
-        methodNode.setIsConstructor(isConstructor(methodName, className));
-        methodNode.setIsGetter(isGetter(methodName));
-        methodNode.setIsSetter(isSetter(methodName));
-        methodNode.setParameters(new ArrayList<>());
-        methodNode.setModifiers(new ArrayList<>());
 
         return methodNode;
     }

@@ -37,39 +37,6 @@ public class Neo4jMethodNode {
     @Property("parameters")
     private List<String> parameters;
 
-    @Property("modifiers")
-    private List<String> modifiers;
-
-    @Property("isAbstract")
-    private Boolean isAbstract;
-
-    @Property("isFinal")
-    private Boolean isFinal;
-
-    @Property("isPublic")
-    private Boolean isPublic;
-
-    @Property("isPrivate")
-    private Boolean isPrivate;
-
-    @Property("isProtected")
-    private Boolean isProtected;
-
-    @Property("isStatic")
-    private Boolean isStatic;
-
-    @Property("isSynchronized")
-    private Boolean isSynchronized;
-
-    @Property("isConstructor")
-    private Boolean isConstructor;
-
-    @Property("isGetter")
-    private Boolean isGetter;
-
-    @Property("isSetter")
-    private Boolean isSetter;
-
     @Property("sourceFile")
     private String sourceFile;
 

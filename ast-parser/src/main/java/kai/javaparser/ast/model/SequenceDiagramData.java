@@ -17,12 +17,15 @@ import lombok.Setter;
 public class SequenceDiagramData {
     private String classFqn; // 入口方法
     private String classType; // 類別類型: "Class", "AbstractClass", "Interface"
+    private String extendsClassFqn; // 繼承的類別 FQN (例如: "java.lang.Object")
+    private List<String> implementsInterfaceFqns; // 實現的介面 FQN 列表 (例如: ["java.io.Serializable"])
     private List<MethodGroup> methodGroups; // 按方法分組的互動列表
     private List<AnnotationInfo> classAnnotations; // 類別上的註解
 
     public SequenceDiagramData() {
         this.methodGroups = new ArrayList<>();
         this.classAnnotations = new ArrayList<>();
+        this.implementsInterfaceFqns = new ArrayList<>();
     }
 
     public void addMethodGroup(MethodGroup methodGroup) {

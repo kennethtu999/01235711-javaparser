@@ -119,13 +119,6 @@ public abstract class BaseAstGraphHandler implements IAstGraphHandler {
         classNode.setSourceFile(sourceFile);
         classNode.setLineNumber(1);
         classNode.setColumnNumber(1);
-        classNode.setIsAbstract(false);
-        classNode.setIsFinal(false);
-        classNode.setIsPublic(true);
-        classNode.setIsPrivate(false);
-        classNode.setIsProtected(false);
-        classNode.setIsStatic(false);
-        classNode.setModifiers(new ArrayList<>());
 
         return classNode;
     }
@@ -142,11 +135,6 @@ public abstract class BaseAstGraphHandler implements IAstGraphHandler {
         interfaceNode.setSourceFile(sourceFile);
         interfaceNode.setLineNumber(1);
         interfaceNode.setColumnNumber(1);
-        interfaceNode.setIsPublic(true);
-        interfaceNode.setIsPrivate(false);
-        interfaceNode.setIsProtected(false);
-        interfaceNode.setIsStatic(false);
-        interfaceNode.setModifiers(new ArrayList<>());
 
         return interfaceNode;
     }
@@ -171,11 +159,6 @@ public abstract class BaseAstGraphHandler implements IAstGraphHandler {
         methodNode.setLineNumber(startLine);
         methodNode.setColumnNumber(0);
         methodNode.setBodyLength(endLine - startLine + 1);
-        methodNode.setIsConstructor(isConstructor(methodName, className));
-        methodNode.setIsGetter(isGetter(methodName));
-        methodNode.setIsSetter(isSetter(methodName));
-        methodNode.setParameters(new ArrayList<>());
-        methodNode.setModifiers(new ArrayList<>());
 
         return methodNode;
     }

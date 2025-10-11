@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +21,6 @@ import kai.javaparser.ast.entity.Neo4jClassNode;
 import kai.javaparser.ast.entity.Neo4jInterfaceNode;
 import kai.javaparser.ast.entity.Neo4jMethodNode;
 import kai.javaparser.ast.repository.AstNodeRepositoryService;
-import kai.javaparser.astgraph.service.handler.AbstractClassAstGraphHandler;
 import kai.javaparser.astgraph.service.handler.ClassAstGraphHandler;
 import kai.javaparser.astgraph.service.handler.InterfaceAstGraphHandler;
 import kai.javaparser.astgraph.util.AstToGraphUtil;
@@ -52,9 +50,6 @@ public class AstToGraphService {
 
     @Autowired
     private InterfaceAstGraphHandler interfaceHandler;
-
-    @Autowired
-    private AbstractClassAstGraphHandler abstractClassHandler;
 
     @Autowired
     private AstToGraphUtil astToGraphUtil;
@@ -105,16 +100,6 @@ public class AstToGraphService {
             nodesCreated += classesInserted;
             allClassNodes.addAll(classNodes);
             log.debug("批量插入 {} 個類別節點", classesInserted);
-        }
-
-        // 轉換抽象類
-        List<Neo4jClassNode> abstractClassNodes = abstractClassHandler.convertToEntities(rootNode, sourceFile,
-                packageName);
-        if (!abstractClassNodes.isEmpty()) {
-            int abstractClassesInserted = astNodeRepositoryService.bulkSaveClasses(abstractClassNodes);
-            nodesCreated += abstractClassesInserted;
-            allClassNodes.addAll(abstractClassNodes);
-            log.debug("批量插入 {} 個抽象類節點", abstractClassesInserted);
         }
 
         // 轉換介面
@@ -218,17 +203,12 @@ public class AstToGraphService {
                             // 使用 Handler 轉換節點
                             List<Neo4jClassNode> classNodes = classHandler.convertToEntities(rootNode, sourceFile,
                                     packageName);
-                            List<Neo4jClassNode> abstractClassNodes = abstractClassHandler.convertToEntities(rootNode,
-                                    sourceFile, packageName);
                             List<Neo4jInterfaceNode> interfaceNodes = interfaceHandler.convertToEntities(rootNode,
                                     sourceFile, packageName);
                             List<Neo4jMethodNode> methodNodes = convertMethodsToEntities(rootNode, sourceFile,
                                     packageName);
                             List<Neo4jAnnotationNode> annotationNodes = convertAnnotationsToEntities(rootNode,
                                     sourceFile, packageName);
-
-                            // 將抽象類併入普通類別
-                            classNodes.addAll(abstractClassNodes);
 
                             // 收集節點
                             allClassNodes.addAll(classNodes);
@@ -379,23 +359,6 @@ public class AstToGraphService {
             }
         }
 
-        // 建立抽象類與方法的關係
-        List<Neo4jClassNode> abstractClassNodes = classNodes.stream()
-                .filter(node -> "AbstractClass".equals(node.getNodeType()))
-                .collect(Collectors.toList());
-
-        if (!abstractClassNodes.isEmpty() && !methodNodes.isEmpty()) {
-            Map<String, List<String>> abstractClassMethodRelations = abstractClassHandler.extractMethodRelations(
-                    rootNode, abstractClassNodes,
-                    methodNodes);
-            if (!abstractClassMethodRelations.isEmpty()) {
-                int abstractClassMethodRelationsCreated = astNodeRepositoryService
-                        .bulkCreateClassMethodRelations(abstractClassMethodRelations);
-                relationshipsCreated += abstractClassMethodRelationsCreated;
-                log.debug("批量建立 {} 個抽象類與方法的關係", abstractClassMethodRelationsCreated);
-            }
-        }
-
         // 建立介面與方法的關係
         if (!interfaceNodes.isEmpty() && !methodNodes.isEmpty()) {
             Map<String, List<String>> interfaceMethodRelations = interfaceHandler.extractMethodRelations(rootNode,
@@ -429,19 +392,6 @@ public class AstToGraphService {
                         .bulkCreateClassAnnotationRelations(classAnnotationRelations);
                 relationshipsCreated += classAnnotationRelationsCreated;
                 log.debug("批量建立 {} 個類別與註解的關係", classAnnotationRelationsCreated);
-            }
-
-            // 建立抽象類與註解的關係
-            if (!abstractClassNodes.isEmpty()) {
-                Map<String, List<String>> abstractClassAnnotationRelations = abstractClassHandler
-                        .extractAnnotationRelations(rootNode,
-                                abstractClassNodes, annotationNodes);
-                if (!abstractClassAnnotationRelations.isEmpty()) {
-                    int abstractClassAnnotationRelationsCreated = astNodeRepositoryService
-                            .bulkCreateClassAnnotationRelations(abstractClassAnnotationRelations);
-                    relationshipsCreated += abstractClassAnnotationRelationsCreated;
-                    log.debug("批量建立 {} 個抽象類與註解的關係", abstractClassAnnotationRelationsCreated);
-                }
             }
 
             // 建立介面與註解的關係

@@ -33,12 +33,10 @@ public class ClassAstGraphHandler extends BaseAstGraphHandler {
 
             // 只處理普通類別，不處理抽象類和介面
             if (!className.isEmpty() &&
-                    !"Interface".equalsIgnoreCase(classType) &&
-                    !"AbstractClass".equalsIgnoreCase(classType)) {
+                    !"Interface".equalsIgnoreCase(classType)) {
                 Neo4jClassNode classNode = createClassEntityFromSequenceData(sequenceData, className, sourceFile,
                         packageName);
                 classNode.setNodeType("Class");
-                classNode.setIsAbstract(false);
                 classNodes.add(classNode);
                 log.debug("創建普通類別節點: {} (ID: {})", className, classNode.getId());
             }

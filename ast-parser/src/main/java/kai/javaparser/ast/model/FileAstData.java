@@ -31,17 +31,14 @@ public class FileAstData implements Serializable {
     private String packageName;
     private List<String> imports;
     private SequenceDiagramData sequenceDiagramData; // 檔案 AST 的根節點
-    private List<FieldInfo> fields; // 類別的所有屬性
 
     public FileAstData() {
         this.imports = new ArrayList<>();
-        this.fields = new ArrayList<>();
     }
 
     public FileAstData(char[] fileContent) {
         this.fileContent = fileContent;
         this.imports = new ArrayList<>();
-        this.fields = new ArrayList<>();
     }
 
     /**

@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import kai.javaparser.ast.model.FieldInfo;
 import kai.javaparser.ast.model.FileAstData;
 import kai.javaparser.ast.model.MethodGroup;
 import kai.javaparser.diagram.AstClassUtil;
@@ -109,9 +108,6 @@ public class JdtBasedSourceCodeWeaver implements SourceCodeWeaver {
         StringBuilder result = new StringBuilder();
         String[] lines = sourceCode.split("\n");
 
-        // 獲取所有屬性的行號
-        Set<Integer> fieldLines = getFieldLines(astData);
-
         // 獲取使用的方法的行號
         Set<Integer> usedMethodLines = getUsedMethodLines(astData, rules);
 
@@ -123,7 +119,6 @@ public class JdtBasedSourceCodeWeaver implements SourceCodeWeaver {
 
         // 計算需要保留的所有行號
         Set<Integer> linesToKeep = new HashSet<>();
-        linesToKeep.addAll(fieldLines);
         linesToKeep.addAll(usedMethodLines);
         linesToKeep.addAll(constructorLines);
 
@@ -157,23 +152,6 @@ public class JdtBasedSourceCodeWeaver implements SourceCodeWeaver {
 
         result.append("}");
         return result.toString();
-    }
-
-    /**
-     * 獲取所有屬性的行號
-     */
-    private Set<Integer> getFieldLines(FileAstData astData) {
-        Set<Integer> fieldLines = new HashSet<>();
-        if (astData.getFields() != null) {
-            for (FieldInfo field : astData.getFields()) {
-                for (int i = field.getStartLineNumber() - 1; i < field.getEndLineNumber(); i++) {
-                    if (i >= 0) {
-                        fieldLines.add(i);
-                    }
-                }
-            }
-        }
-        return fieldLines;
     }
 
     /**

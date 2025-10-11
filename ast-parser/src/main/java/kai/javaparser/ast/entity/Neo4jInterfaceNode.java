@@ -29,21 +29,6 @@ public class Neo4jInterfaceNode {
     @Property("package")
     private String packageName;
 
-    @Property("modifiers")
-    private List<String> modifiers;
-
-    @Property("isPublic")
-    private Boolean isPublic;
-
-    @Property("isPrivate")
-    private Boolean isPrivate;
-
-    @Property("isProtected")
-    private Boolean isProtected;
-
-    @Property("isStatic")
-    private Boolean isStatic;
-
     @Property("sourceFile")
     private String sourceFile;
 

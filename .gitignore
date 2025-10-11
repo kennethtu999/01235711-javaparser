@@ -21,3 +21,4 @@ temp/cacq002/CACQ002_2.jsp
 temp/cacq002/CACQ002_3.jsp
 ws.code-workspace
 ast-parser/.env
+ast-parser/parsed-ast copy/

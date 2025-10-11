@@ -14,7 +14,7 @@ import lombok.Setter;
  * Neo4j 類別節點實體
  * 對應 AST 中的類別節點，支援 Class/AbstractClass/Interface 類型
  */
-@Node({ "Class", "AbstractClass" })
+@Node({ "Class" })
 @Getter
 @Setter
 public class Neo4jClassNode {
@@ -26,31 +26,10 @@ public class Neo4jClassNode {
     private String name;
 
     @Property("nodeType")
-    private String nodeType; // "Class", "AbstractClass", or "Interface"
+    private String nodeType;
 
     @Property("package")
     private String packageName;
-
-    @Property("modifiers")
-    private List<String> modifiers;
-
-    @Property("isAbstract")
-    private Boolean isAbstract;
-
-    @Property("isFinal")
-    private Boolean isFinal;
-
-    @Property("isPublic")
-    private Boolean isPublic;
-
-    @Property("isPrivate")
-    private Boolean isPrivate;
-
-    @Property("isProtected")
-    private Boolean isProtected;
-
-    @Property("isStatic")
-    private Boolean isStatic;
 
     @Property("sourceFile")
     private String sourceFile;

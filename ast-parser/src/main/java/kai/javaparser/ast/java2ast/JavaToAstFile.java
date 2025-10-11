@@ -13,15 +13,13 @@ import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import kai.javaparser.ast.model.AnnotationInfo;
-import kai.javaparser.ast.model.FieldInfo;
 import kai.javaparser.ast.model.FileAstData;
 import kai.javaparser.ast.model.SequenceDiagramData;
 import kai.javaparser.util.AnnotationExtractor;
@@ -81,14 +79,14 @@ public class JavaToAstFile {
             sequenceData.setClassType(classType);
             logger.debug("檢測到類別類型: {} for {}", classType, fqn);
 
+            // 【新增：提取繼承和實現資訊】
+            extractInheritanceInfo(cu, sequenceData);
+
             // 提取類別級別的註解
             extractClassAnnotations(cu, sequenceData);
 
             // 使用自定義訪問者提取互動
             cu.accept(new EnhancedInteractionModelVisitor(sequenceData, cu));
-
-            // 提取 fields 信息
-            List<FieldInfo> fields = extractFields(cu);
 
             FileAstData fileAstData = new FileAstData();
             fileAstData.setPackageName(cu.getPackage().getName().getFullyQualifiedName());
@@ -96,7 +94,6 @@ public class JavaToAstFile {
             fileAstData.setRelativePath(sourceFilePath.getFileName().toString());
             fileAstData.setAbsolutePath(sourceFilePath.toAbsolutePath().toString());
             fileAstData.setSequenceDiagramData(sequenceData);
-            fileAstData.setFields(fields);
             @SuppressWarnings("unchecked")
             List<String> imports = ((List<ImportDeclaration>) cu.imports()).stream()
                     .map(i -> i.getName().getFullyQualifiedName())
@@ -134,7 +131,7 @@ public class JavaToAstFile {
      * 檢測類別類型
      * 
      * @param cu CompilationUnit
-     * @return 類別類型: "Class", "AbstractClass", "Interface"
+     * @return 類別類型: "Class", "Interface"
      */
     private String detectClassType(CompilationUnit cu) {
         for (Object typeDecl : cu.types()) {
@@ -171,80 +168,6 @@ public class JavaToAstFile {
     }
 
     /**
-     * 提取類別中的所有 fields
-     */
-    private List<FieldInfo> extractFields(CompilationUnit cu) {
-        List<FieldInfo> fields = new ArrayList<>();
-
-        for (Object typeDecl : cu.types()) {
-            if (typeDecl instanceof TypeDeclaration) {
-                TypeDeclaration type = (TypeDeclaration) typeDecl;
-
-                // 提取 fields
-                for (Object fieldDecl : type.bodyDeclarations()) {
-                    if (fieldDecl instanceof FieldDeclaration) {
-                        FieldDeclaration field = (FieldDeclaration) fieldDecl;
-
-                        // 獲取修飾符
-                        StringBuilder modifiers = new StringBuilder();
-                        for (Object modifier : field.modifiers()) {
-                            if (modifiers.length() > 0) {
-                                modifiers.append(" ");
-                            }
-                            modifiers.append(modifier.toString());
-                        }
-
-                        // 提取欄位註解
-                        List<AnnotationInfo> fieldAnnotations = AnnotationExtractor.extractAnnotations(
-                                field.modifiers(), cu);
-
-                        // 獲取類型
-                        String fieldType = field.getType().toString();
-
-                        // 獲取行號
-                        int startLine = cu.getLineNumber(field.getStartPosition());
-                        int endLine = cu.getLineNumber(field.getStartPosition() + field.getLength());
-
-                        // 處理每個變數宣告片段
-                        for (Object fragment : field.fragments()) {
-                            if (fragment instanceof VariableDeclarationFragment) {
-                                VariableDeclarationFragment varFragment = (VariableDeclarationFragment) fragment;
-                                String fieldName = varFragment.getName().getIdentifier();
-
-                                // 獲取預設值
-                                String defaultValue = null;
-                                if (varFragment.getInitializer() != null) {
-                                    defaultValue = varFragment.getInitializer().toString();
-                                }
-
-                                FieldInfo fieldInfo = new FieldInfo(
-                                        fieldName,
-                                        fieldType,
-                                        modifiers.toString(),
-                                        startLine,
-                                        endLine);
-                                fieldInfo.setDefaultValue(defaultValue);
-
-                                // 添加欄位註解
-                                for (AnnotationInfo annotation : fieldAnnotations) {
-                                    fieldInfo.addAnnotation(annotation);
-                                }
-
-                                fields.add(fieldInfo);
-                                logger.debug("提取 field: {} {} {} (註解: {})",
-                                        modifiers.toString(), fieldType, fieldName, fieldAnnotations.size());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        logger.debug("提取到 {} 個 fields", fields.size());
-        return fields;
-    }
-
-    /**
      * 提取類別級別的註解
      */
     private void extractClassAnnotations(CompilationUnit cu, SequenceDiagramData sequenceData) {
@@ -260,6 +183,46 @@ public class JavaToAstFile {
                     sequenceData.addClassAnnotation(annotation);
                     logger.debug("提取類別註解: {}", annotation.getAnnotationName());
                 }
+            }
+        }
+    }
+
+    /**
+     * 【新增輔助方法：提取繼承和實現資訊】
+     */
+    private void extractInheritanceInfo(CompilationUnit cu, SequenceDiagramData sequenceData) {
+        for (Object typeDecl : cu.types()) {
+            if (typeDecl instanceof TypeDeclaration) {
+                TypeDeclaration type = (TypeDeclaration) typeDecl;
+
+                // 提取父類別 (extends)
+                if (type.getSuperclassType() != null) {
+                    ITypeBinding binding = type.getSuperclassType().resolveBinding();
+                    if (binding != null) {
+                        sequenceData.setExtendsClassFqn(binding.getQualifiedName());
+                        logger.debug("提取父類別: {}", binding.getQualifiedName());
+                    } else {
+                        // 如果 binding 為 null，使用 toString (可能不準確，但聊勝於無)
+                        sequenceData.setExtendsClassFqn(type.getSuperclassType().toString());
+                        logger.warn("無法解析父類別 binding，使用 toString: {}", type.getSuperclassType().toString());
+                    }
+                }
+
+                // 提取實現介面 (implements)
+                @SuppressWarnings("unchecked")
+                List<org.eclipse.jdt.core.dom.Type> interfaces = type.superInterfaceTypes();
+                List<String> interfaceFqns = new ArrayList<>();
+                for (org.eclipse.jdt.core.dom.Type interfaceType : interfaces) {
+                    ITypeBinding binding = interfaceType.resolveBinding();
+                    if (binding != null) {
+                        interfaceFqns.add(binding.getQualifiedName());
+                        logger.debug("提取實現介面: {}", binding.getQualifiedName());
+                    } else {
+                        interfaceFqns.add(interfaceType.toString());
+                        logger.warn("無法解析實現介面 binding，使用 toString: {}", interfaceType.toString());
+                    }
+                }
+                sequenceData.setImplementsInterfaceFqns(interfaceFqns);
             }
         }
     }
