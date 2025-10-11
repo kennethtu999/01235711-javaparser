@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,14 +89,19 @@ public class AstToGraphControllerTest {
 
         // 3. 測試轉換所有 AST 文件為圖數據庫
         logger.info("步驟 2: 測試轉換所有 AST 文件為圖數據庫");
-        String convertResponse = mockMvc.perform(post("/api/ast-graph/convert"))
-                .andExpect(status().isOk())
+        String convertResponse = mockMvc.perform(post("/api/ast-graph/convert-bulk"))
+                .andExpect(status().isAccepted()) // 現在返回 202 Accepted
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.status").value("PROCESSING"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
         logger.info("轉換數據庫響應: {}", convertResponse);
         writeContentToFile("astGraphConvertResponse.json", convertResponse);
+
+        // 等待轉換完成
+        logger.info("等待轉換完成...");
+        waitForConversionToComplete();
 
         // 4. 測試獲取統計信息
         logger.info("步驟 4: 測試獲取 AST 圖統計信息");
@@ -114,6 +120,103 @@ public class AstToGraphControllerTest {
         testCustomQuery();
 
         logger.info("=== 完整 AST 到圖轉換工作流程測試完成 ===");
+    }
+
+    /**
+     * 測試清理 AST 數據 API
+     * 測試清理圖數據庫中的所有 AST 相關數據
+     */
+    @Test
+    void testClearAstData() throws Exception {
+        logger.info("=== 開始測試清理 AST 數據 API ===");
+
+        // 測試清理數據
+        logger.info("測試清理 AST 數據端點");
+        String clearResponse = mockMvc.perform(delete("/api/ast-graph/clear"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("AST 數據清理完成"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        logger.info("清理數據響應: {}", clearResponse);
+        writeContentToFile("clearAstDataResponse.json", clearResponse);
+
+        // 驗證清理後的統計信息
+        logger.info("驗證清理後的統計信息");
+        String statisticsResponse = mockMvc.perform(get("/api/ast-graph/statistics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.statistics").exists())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        logger.info("清理後統計信息響應: {}", statisticsResponse);
+        writeContentToFile("statisticsAfterClearResponse.json", statisticsResponse);
+
+        logger.info("=== 清理 AST 數據 API 測試完成 ===");
+    }
+
+    /**
+     * 等待轉換完成的輔助方法
+     * 通過定期調用 /status 檢查轉換狀態來判斷轉換是否完成
+     */
+    private void waitForConversionToComplete() throws Exception {
+        int maxAttempts = 30; // 最多等待 30 次
+        int attempt = 0;
+
+        while (attempt < maxAttempts) {
+            try {
+                String statusResponse = mockMvc.perform(get("/api/ast-graph/status"))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+
+                // 解析狀態信息
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = objectMapper.readValue(statusResponse, Map.class);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> status = (Map<String, Object>) response.get("status");
+
+                if (status != null) {
+                    Boolean isConverting = (Boolean) status.get("isConverting");
+                    String conversionStatus = (String) status.get("status");
+
+                    // 安全地處理數字類型轉換
+                    Long elapsedTime = null;
+                    Object elapsedTimeObj = status.get("elapsedTime");
+                    if (elapsedTimeObj instanceof Number) {
+                        elapsedTime = ((Number) elapsedTimeObj).longValue();
+                    }
+
+                    logger.info("轉換狀態檢查 - 嘗試 {}/{}, 正在轉換: {}, 狀態: {}, 耗時: {}ms",
+                            attempt + 1, maxAttempts, isConverting, conversionStatus, elapsedTime);
+
+                    // 如果轉換已完成或失敗，則退出循環
+                    if (!isConverting && ("COMPLETED".equals(conversionStatus) || "FAILED".equals(conversionStatus))) {
+                        logger.info("轉換已完成，狀態: {}", conversionStatus);
+                        break;
+                    }
+                }
+
+                attempt++;
+                TimeUnit.SECONDS.sleep(2); // 等待 2 秒後再次檢查
+
+            } catch (Exception e) {
+                logger.warn("檢查轉換狀態時發生錯誤: {}", e.getMessage());
+                attempt++;
+                TimeUnit.SECONDS.sleep(2);
+            }
+        }
+
+        if (attempt >= maxAttempts) {
+            logger.warn("轉換等待超時，但繼續執行後續測試");
+        } else {
+            logger.info("轉換狀態檢查完成");
+        }
     }
 
     /**

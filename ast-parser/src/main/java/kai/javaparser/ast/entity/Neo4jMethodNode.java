@@ -1,6 +1,5 @@
 package kai.javaparser.ast.entity;
 
-import java.util.Date;
 import java.util.List;
 
 import org.springframework.data.neo4j.core.schema.Id;
@@ -84,11 +83,11 @@ public class Neo4jMethodNode {
     private Integer bodyLength;
 
     @Property("createdAt")
-    private Date createdAt;
+    private Long createdAt;
 
     // 建構子
     public Neo4jMethodNode() {
-        this.createdAt = new Date();
+        this.createdAt = System.currentTimeMillis();
     }
 
     public Neo4jMethodNode(String id, String name, String className) {

@@ -1,7 +1,6 @@
 package kai.javaparser.astgraph.controller;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import kai.javaparser.astgrapth.service.AstToGraphService;
+import kai.javaparser.astgraph.service.AstToGraphService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -30,47 +29,50 @@ public class AstToGraphController {
     @Autowired
     private AstToGraphService astToGraphService;
 
-    @PostMapping("/convert")
-    @Operation(summary = "轉換所有 AST 文件為圖數據庫", description = "將所有 AST JSON 文件轉換為 Neo4j 圖數據庫中的節點和關係")
-    public ResponseEntity<Map<String, Object>> convertAllAstToGraph() {
+    @PostMapping("/convert-bulk")
+    @Operation(summary = "批量轉換所有 AST 文件（大型系統）", description = "適用於超過100,000節點的大型系統，使用批量操作防止重複插入，保持關係完整性")
+    public ResponseEntity<Map<String, Object>> convertAllAstToGraphBulk() {
         try {
-            log.info("開始轉換所有 AST 文件為圖數據庫");
-            Map<String, Object> result = astToGraphService.convertAllAstToGraph();
-
-            boolean success = (Boolean) result.getOrDefault("success", false);
-            if (success) {
-                log.info("AST 轉換成功完成");
-                return ResponseEntity.ok(result);
-            } else {
-                log.error("AST 轉換失敗: {}", result.get("message"));
-                return ResponseEntity.status(500).body(result);
-            }
-        } catch (Exception e) {
-            log.error("AST 轉換過程中發生錯誤", e);
-            return ResponseEntity.status(500).body(Map.of(
-                    "success", false,
-                    "message", "轉換過程中發生錯誤: " + e.getMessage(),
-                    "error", e.getMessage()));
-        }
-    }
-
-    @PostMapping("/convert-async")
-    @Operation(summary = "異步轉換所有 AST 文件", description = "異步將所有 AST JSON 文件轉換為圖數據庫")
-    public ResponseEntity<Map<String, Object>> convertAllAstToGraphAsync() {
-        try {
-            log.info("開始異步轉換所有 AST 文件為圖數據庫");
-            CompletableFuture<Map<String, Object>> future = astToGraphService.convertAllAstToGraphAsync();
+            log.info("開始批量轉換所有 AST 文件（大型系統模式）");
+            astToGraphService.convertAllAstToGraphBulk();
 
             // 立即返回任務已啟動的響應
             return ResponseEntity.accepted().body(Map.of(
                     "success", true,
-                    "message", "異步轉換任務已啟動",
-                    "status", "PROCESSING"));
+                    "message", "批量轉換任務已啟動（大型系統模式）",
+                    "status", "PROCESSING",
+                    "features", Map.of(
+                            "bulkOperations", true,
+                            "duplicatePrevention", true,
+                            "relationshipPreservation", true,
+                            "nodeTypes", "Class/Interface",
+                            "optimizedForLargeSystems", true)));
         } catch (Exception e) {
-            log.error("啟動異步 AST 轉換時發生錯誤", e);
+            log.error("啟動批量 AST 轉換時發生錯誤", e);
             return ResponseEntity.status(500).body(Map.of(
                     "success", false,
-                    "message", "啟動異步轉換失敗: " + e.getMessage(),
+                    "message", "啟動批量轉換失敗: " + e.getMessage(),
+                    "error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/status")
+    @Operation(summary = "查詢轉換處理狀態", description = "查詢當前轉換任務的處理狀態")
+    public ResponseEntity<Map<String, Object>> getConversionStatus() {
+        try {
+            Map<String, Object> status = astToGraphService.getConversionStatus();
+
+            Map<String, Object> response = Map.of(
+                    "success", true,
+                    "message", "狀態查詢成功",
+                    "status", status);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("查詢轉換狀態時發生錯誤", e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "查詢狀態失敗: " + e.getMessage(),
                     "error", e.getMessage()));
         }
     }

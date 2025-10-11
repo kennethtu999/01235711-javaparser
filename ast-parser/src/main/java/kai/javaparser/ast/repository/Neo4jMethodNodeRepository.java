@@ -114,4 +114,28 @@ public interface Neo4jMethodNodeRepository extends Neo4jRepository<Neo4jMethodNo
      */
     @Query("MATCH (m:Method) DETACH DELETE m")
     void deleteAllMethods();
+
+    /**
+     * 批量檢查方法是否存在（防止重複插入）
+     */
+    @Query("MATCH (m:Method) WHERE m.id IN $ids RETURN m.id")
+    List<String> findExistingMethodIds(@Param("ids") List<String> ids);
+
+    /**
+     * 查找特定類別的所有方法（使用 CONTAINS 關係）
+     */
+    @Query("MATCH (c:Class {id: $classId})-[:CONTAINS]->(m:Method) RETURN m")
+    List<Neo4jMethodNode> findMethodsByClassId(@Param("classId") String classId);
+
+    /**
+     * 查找方法呼叫關係
+     */
+    @Query("MATCH (caller:Method {id: $callerId})-[:CALLS]->(callee:Method) RETURN callee")
+    List<Neo4jMethodNode> findCalledMethodsByCallerId(@Param("callerId") String callerId);
+
+    /**
+     * 查找被呼叫的方法
+     */
+    @Query("MATCH (caller:Method)-[:CALLS]->(callee:Method {id: $calleeId}) RETURN caller")
+    List<Neo4jMethodNode> findCallingMethodsByCalleeId(@Param("calleeId") String calleeId);
 }

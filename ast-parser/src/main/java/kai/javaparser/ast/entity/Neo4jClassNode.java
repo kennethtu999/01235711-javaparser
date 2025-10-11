@@ -1,6 +1,5 @@
 package kai.javaparser.ast.entity;
 
-import java.util.Date;
 import java.util.List;
 
 import org.springframework.data.neo4j.core.schema.Id;
@@ -13,9 +12,9 @@ import lombok.Setter;
 
 /**
  * Neo4j 類別節點實體
- * 對應 AST 中的類別節點
+ * 對應 AST 中的類別節點，支援 Class/AbstractClass/Interface 類型
  */
-@Node("Class")
+@Node({ "Class", "AbstractClass" })
 @Getter
 @Setter
 public class Neo4jClassNode {
@@ -25,6 +24,9 @@ public class Neo4jClassNode {
 
     @Property("name")
     private String name;
+
+    @Property("nodeType")
+    private String nodeType; // "Class", "AbstractClass", or "Interface"
 
     @Property("package")
     private String packageName;
@@ -60,11 +62,11 @@ public class Neo4jClassNode {
     private Integer columnNumber;
 
     @Property("createdAt")
-    private Date createdAt;
+    private Long createdAt;
 
     // 建構子
     public Neo4jClassNode() {
-        this.createdAt = new Date();
+        this.createdAt = System.currentTimeMillis();
     }
 
     public Neo4jClassNode(String id, String name, String packageName) {
@@ -72,6 +74,15 @@ public class Neo4jClassNode {
         this.id = id;
         this.name = name;
         this.packageName = packageName;
+        this.nodeType = "Class"; // Default to Class
+    }
+
+    public Neo4jClassNode(String id, String name, String packageName, String nodeType) {
+        this();
+        this.id = id;
+        this.name = name;
+        this.packageName = packageName;
+        this.nodeType = nodeType;
     }
 
     // 關係定義

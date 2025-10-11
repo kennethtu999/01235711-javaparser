@@ -3,6 +3,7 @@ package kai.javaparser.ast.repository;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import kai.javaparser.ast.entity.Neo4jAnnotationNode;
 import kai.javaparser.ast.entity.Neo4jClassNode;
 import kai.javaparser.ast.entity.Neo4jInterfaceNode;
 import kai.javaparser.ast.entity.Neo4jMethodNode;
+import kai.javaparser.ast.service.BulkNeo4jService;
 import kai.javaparser.repository.Neo4jInterfaceNodeRepository;
 
 /**
@@ -31,6 +33,9 @@ public class AstNodeRepositoryService {
 
     @Autowired
     private Neo4jAnnotationNodeRepository annotationRepository;
+
+    @Autowired
+    private BulkNeo4jService bulkNeo4jService;
 
     // ==================== 類別操作 ====================
 
@@ -74,10 +79,6 @@ public class AstNodeRepositoryService {
 
     public List<Neo4jMethodNode> findMethodsBySourceFile(String sourceFile) {
         return methodRepository.findBySourceFile(sourceFile);
-    }
-
-    public List<Neo4jMethodNode> findMethodsByClassId(String classId) {
-        return methodRepository.findByClassId(classId);
     }
 
     public void deleteMethodsBySourceFile(String sourceFile) {
@@ -172,5 +173,202 @@ public class AstNodeRepositoryService {
         deleteMethodsBySourceFile(sourceFile);
         deleteInterfacesBySourceFile(sourceFile);
         deleteClassesBySourceFile(sourceFile);
+    }
+
+    // ==================== 批量操作 ====================
+
+    /**
+     * 批量保存類別節點，防止重複插入
+     * 
+     * @param classNodes 類別節點列表
+     * @return 成功插入的節點數量
+     */
+    public int bulkSaveClasses(List<Neo4jClassNode> classNodes) {
+        return bulkNeo4jService.bulkInsertClasses(classNodes);
+    }
+
+    /**
+     * 批量保存方法節點，防止重複插入
+     * 
+     * @param methodNodes 方法節點列表
+     * @return 成功插入的節點數量
+     */
+    public int bulkSaveMethods(List<Neo4jMethodNode> methodNodes) {
+        return bulkNeo4jService.bulkInsertMethods(methodNodes);
+    }
+
+    /**
+     * 批量建立類別與方法的關係
+     * 
+     * @param classMethodRelations 類別ID到方法ID列表的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateClassMethodRelations(Map<String, List<String>> classMethodRelations) {
+        return bulkNeo4jService.bulkCreateClassMethodRelations(classMethodRelations);
+    }
+
+    /**
+     * 批量建立介面與方法的關係
+     * 
+     * @param interfaceMethodRelations 介面ID到方法ID列表的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateInterfaceMethodRelations(Map<String, List<String>> interfaceMethodRelations) {
+        return bulkNeo4jService.bulkCreateInterfaceMethodRelations(interfaceMethodRelations);
+    }
+
+    /**
+     * 批量建立方法與方法的呼叫關係
+     * 
+     * @param methodCallRelations 呼叫者方法ID到被呼叫方法ID列表的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateMethodCallRelations(Map<String, List<String>> methodCallRelations) {
+        return bulkNeo4jService.bulkCreateMethodCallRelations(methodCallRelations);
+    }
+
+    /**
+     * 批量建立類別與註解的關係
+     * 
+     * @param classAnnotationRelations 類別ID到註解ID列表的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateClassAnnotationRelations(Map<String, List<String>> classAnnotationRelations) {
+        return bulkNeo4jService.bulkCreateClassAnnotationRelations(classAnnotationRelations);
+    }
+
+    /**
+     * 批量建立介面與註解的關係
+     * 
+     * @param interfaceAnnotationRelations 介面ID到註解ID列表的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateInterfaceAnnotationRelations(Map<String, List<String>> interfaceAnnotationRelations) {
+        return bulkNeo4jService.bulkCreateInterfaceAnnotationRelations(interfaceAnnotationRelations);
+    }
+
+    /**
+     * 批量建立方法與註解的關係
+     * 
+     * @param methodAnnotationRelations 方法ID到註解ID列表的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateMethodAnnotationRelations(Map<String, List<String>> methodAnnotationRelations) {
+        return bulkNeo4jService.bulkCreateMethodAnnotationRelations(methodAnnotationRelations);
+    }
+
+    /**
+     * 批量保存介面節點，防止重複插入
+     * 
+     * @param interfaceNodes 介面節點列表
+     * @return 成功插入的節點數量
+     */
+    public int bulkSaveInterfaces(List<Neo4jInterfaceNode> interfaceNodes) {
+        return bulkNeo4jService.bulkInsertInterfaces(interfaceNodes);
+    }
+
+    /**
+     * 批量保存註解節點，防止重複插入
+     * 
+     * @param annotationNodes 註解節點列表
+     * @return 成功插入的節點數量
+     */
+    public int bulkSaveAnnotations(List<Neo4jAnnotationNode> annotationNodes) {
+        return bulkNeo4jService.bulkInsertAnnotations(annotationNodes);
+    }
+
+    /**
+     * 異步批量處理，適用於大量數據（超過100,000節點）
+     * 
+     * @param classNodes           類別節點列表
+     * @param methodNodes          方法節點列表
+     * @param classMethodRelations 類別方法關係
+     * @param methodCallRelations  方法呼叫關係
+     * @return 處理結果的 CompletableFuture
+     */
+    public CompletableFuture<BulkNeo4jService.BulkOperationResult> asyncBulkProcess(
+            List<Neo4jClassNode> classNodes,
+            List<Neo4jMethodNode> methodNodes,
+            Map<String, List<String>> classMethodRelations,
+            Map<String, List<String>> methodCallRelations) {
+        return bulkNeo4jService.asyncBulkProcess(classNodes, methodNodes, classMethodRelations, methodCallRelations);
+    }
+
+    /**
+     * 根據節點類型查找類別
+     * 
+     * @param nodeType 節點類型（Class/AbstractClass/Interface）
+     * @return 類別列表
+     */
+    public List<Neo4jClassNode> findClassesByNodeType(String nodeType) {
+        return classRepository.findByNodeType(nodeType);
+    }
+
+    /**
+     * 查找所有抽象類別
+     * 
+     * @return 抽象類別列表
+     */
+    public List<Neo4jClassNode> findAllAbstractClasses() {
+        return classRepository.findAllAbstractClassesByType();
+    }
+
+    /**
+     * 查找所有介面
+     * 
+     * @return 介面列表
+     */
+    public List<Neo4jClassNode> findAllInterfaces() {
+        return classRepository.findAllInterfaces();
+    }
+
+    /**
+     * 檢查類別是否存在（防止重複插入）
+     * 
+     * @param ids 類別ID列表
+     * @return 已存在的類別ID列表
+     */
+    public List<String> findExistingClassIds(List<String> ids) {
+        return classRepository.findExistingClassIds(ids);
+    }
+
+    /**
+     * 檢查方法是否存在（防止重複插入）
+     * 
+     * @param ids 方法ID列表
+     * @return 已存在的方法ID列表
+     */
+    public List<String> findExistingMethodIds(List<String> ids) {
+        return methodRepository.findExistingMethodIds(ids);
+    }
+
+    /**
+     * 查找特定類別的所有方法
+     * 
+     * @param classId 類別ID
+     * @return 方法列表
+     */
+    public List<Neo4jMethodNode> findMethodsByClassId(String classId) {
+        return methodRepository.findMethodsByClassId(classId);
+    }
+
+    /**
+     * 查找方法呼叫關係
+     * 
+     * @param callerId 呼叫者方法ID
+     * @return 被呼叫的方法列表
+     */
+    public List<Neo4jMethodNode> findCalledMethodsByCallerId(String callerId) {
+        return methodRepository.findCalledMethodsByCallerId(callerId);
+    }
+
+    /**
+     * 查找被呼叫的方法
+     * 
+     * @param calleeId 被呼叫方法ID
+     * @return 呼叫者方法列表
+     */
+    public List<Neo4jMethodNode> findCallingMethodsByCalleeId(String calleeId) {
+        return methodRepository.findCallingMethodsByCalleeId(calleeId);
     }
 }

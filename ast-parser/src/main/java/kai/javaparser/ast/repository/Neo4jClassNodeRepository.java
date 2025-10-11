@@ -1,6 +1,7 @@
 package kai.javaparser.ast.repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.neo4j.repository.Neo4jRepository;
@@ -108,4 +109,34 @@ public interface Neo4jClassNodeRepository extends Neo4jRepository<Neo4jClassNode
      */
     @Query("MATCH (c:Class) DETACH DELETE c")
     void deleteAllClasses();
+
+    /**
+     * 根據節點類型查找類別
+     */
+    @Query("MATCH (c:Class {nodeType: $nodeType}) RETURN c")
+    List<Neo4jClassNode> findByNodeType(@Param("nodeType") String nodeType);
+
+    /**
+     * 查找所有抽象類別（使用 nodeType）
+     */
+    @Query("MATCH (c:Class {nodeType: 'AbstractClass'}) RETURN c")
+    List<Neo4jClassNode> findAllAbstractClassesByType();
+
+    /**
+     * 查找所有介面
+     */
+    @Query("MATCH (c:Class {nodeType: 'Interface'}) RETURN c")
+    List<Neo4jClassNode> findAllInterfaces();
+
+    /**
+     * 批量檢查類別是否存在（防止重複插入）
+     */
+    @Query("MATCH (c:Class) WHERE c.id IN $ids RETURN c.id")
+    List<String> findExistingClassIds(@Param("ids") List<String> ids);
+
+    /**
+     * 統計各類型節點數量
+     */
+    @Query("MATCH (c:Class) RETURN c.nodeType as nodeType, count(c) as count")
+    List<Map<String, Object>> countByNodeType();
 }
