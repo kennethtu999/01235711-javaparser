@@ -575,6 +575,93 @@ public class BulkNeo4jService {
     }
 
     /**
+     * 批量建立 EXTENDS 關係 (Class/AbstractClass 之間)
+     *
+     * @param extendsRelations SubClassId 到 SuperClassId 的映射
+     * @return 成功建立的關係數量
+     */
+    @Transactional
+    public int bulkCreateExtendsRelations(Map<String, String> extendsRelations) {
+        if (extendsRelations == null || extendsRelations.isEmpty()) {
+            return 0;
+        }
+
+        log.info("開始批量建立 EXTENDS 關係，共 {} 個", extendsRelations.size());
+
+        // loop and logger info output
+        for (Map.Entry<String, String> entry : extendsRelations.entrySet()) {
+            log.info("EXTENDS 關係: {} -> {}", entry.getKey(), entry.getValue());
+        }
+
+        // Cypher 語句：MATCH 兩個節點，然後 MERGE 關係。標籤使用通配符或 Class/AbstractClass
+        String cypher = """
+                UNWIND $relations AS relation
+                MATCH (sub {id: relation.subClassId})
+                WHERE sub:Class OR sub:AbstractClass
+                MATCH (sup {id: relation.superClassId})
+                WHERE sup:Class OR sup:AbstractClass
+                MERGE (sub)-[:EXTENDS]->(sup)
+                """;
+
+        List<Map<String, String>> relations = extendsRelations.entrySet().stream()
+                .map(entry -> Map.of("subClassId", entry.getKey(), "superClassId", entry.getValue()))
+                .collect(Collectors.toList());
+
+        Map<String, Object> parameters = Map.of("relations", relations);
+
+        try {
+            // 使用 executeWrite 執行，因為它會返回計數
+            long count = neo4jService.executeWrite(cypher, parameters);
+            log.info("成功建立 {} 個 EXTENDS 關係", count);
+            return (int) count;
+        } catch (Exception e) {
+            log.error("批量建立 EXTENDS 關係失敗", e);
+            throw new RuntimeException("批量建立 EXTENDS 關係失敗", e);
+        }
+    }
+
+    /**
+     * 批量建立 IMPLEMENTS 關係 (Class/AbstractClass -> Interface)
+     *
+     * @param implementsRelations ClassId 到 InterfaceId 列表的映射
+     * @return 成功建立的關係數量
+     */
+    @Transactional
+    public int bulkCreateImplementsRelations(Map<String, List<String>> implementsRelations) {
+        if (implementsRelations == null || implementsRelations.isEmpty()) {
+            return 0;
+        }
+
+        log.info("開始批量建立 IMPLEMENTS 關係，共 {} 個類別/介面對", implementsRelations.size());
+
+        // Cypher 語句：MATCH 類別和介面節點，然後 MERGE IMPLEMENTS 關係
+        String cypher = """
+                UNWIND $relations AS relation
+                MATCH (c {id: relation.classId})
+                WHERE c:Class OR c:AbstractClass
+                MATCH (i:Interface {id: relation.interfaceId})
+                MERGE (c)-[:IMPLEMENTS]->(i)
+                """;
+
+        List<Map<String, String>> relations = implementsRelations.entrySet().stream()
+                .flatMap(entry -> entry.getValue().stream()
+                        .map(interfaceId -> Map.of("classId", entry.getKey(), "interfaceId", interfaceId)))
+                .collect(Collectors.toList());
+
+        Map<String, Object> parameters = Map.of("relations", relations);
+
+        try {
+            // 使用 executeWrite 執行，因為它會返回計數
+            long count = neo4jService.executeWrite(cypher, parameters);
+            log.info("成功建立 {} 個 IMPLEMENTS 關係", count);
+            return (int) count;
+        } catch (Exception e) {
+            log.error("批量建立 IMPLEMENTS 關係失敗", e);
+            throw new RuntimeException("批量建立 IMPLEMENTS 關係失敗", e);
+        }
+    }
+
+    /**
      * 批量操作結果
      */
     public static class BulkOperationResult {

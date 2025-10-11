@@ -258,6 +258,26 @@ public class AstNodeRepositoryService {
     }
 
     /**
+     * 批量建立 EXTENDS 關係 (Class/AbstractClass 之間)
+     * 
+     * @param extendsRelations SubClassId 到 SuperClassId 的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateExtendsRelations(Map<String, String> extendsRelations) {
+        return bulkNeo4jService.bulkCreateExtendsRelations(extendsRelations);
+    }
+
+    /**
+     * 批量建立 IMPLEMENTS 關係 (Class/AbstractClass -> Interface)
+     * 
+     * @param implementsRelations ClassId 到 InterfaceId 列表的映射
+     * @return 成功建立的關係數量
+     */
+    public int bulkCreateImplementsRelations(Map<String, List<String>> implementsRelations) {
+        return bulkNeo4jService.bulkCreateImplementsRelations(implementsRelations);
+    }
+
+    /**
      * 批量保存介面節點，防止重複插入
      * 
      * @param interfaceNodes 介面節點列表

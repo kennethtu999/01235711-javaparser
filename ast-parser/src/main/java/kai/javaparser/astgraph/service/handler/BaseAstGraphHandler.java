@@ -13,6 +13,7 @@ import kai.javaparser.ast.entity.Neo4jClassNode;
 import kai.javaparser.ast.entity.Neo4jInterfaceNode;
 import kai.javaparser.ast.entity.Neo4jMethodNode;
 import kai.javaparser.configuration.AppConfig;
+import kai.javaparser.astgraph.util.Neo4jIdGenerator;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -24,6 +25,9 @@ public abstract class BaseAstGraphHandler implements IAstGraphHandler {
 
     @Autowired
     protected AppConfig appConfig;
+
+    @Autowired
+    protected Neo4jIdGenerator neo4jIdGenerator;
 
     /**
      * 提取包名
@@ -80,31 +84,31 @@ public abstract class BaseAstGraphHandler implements IAstGraphHandler {
     }
 
     /**
-     * 生成類別 ID
+     * 生成類別 ID (使用統一生成器)
      */
-    protected String generateClassId(String className, String packageName) {
-        return String.format("class_%s_%s", packageName.replace(".", "_"), className);
+    protected String generateClassId(String classFqn) {
+        return neo4jIdGenerator.generateClassId(classFqn);
     }
 
     /**
-     * 生成介面 ID
+     * 生成介面 ID (使用統一生成器)
      */
-    protected String generateInterfaceId(String interfaceName, String packageName) {
-        return String.format("interface_%s_%s", packageName.replace(".", "_"), interfaceName);
+    protected String generateInterfaceId(String interfaceFqn) {
+        return neo4jIdGenerator.generateInterfaceId(interfaceFqn);
     }
 
     /**
-     * 生成方法 ID
+     * 生成方法 ID (使用統一生成器)
      */
     protected String generateMethodId(String methodName, String className) {
-        return String.format("method_%s_%s", className, methodName);
+        return neo4jIdGenerator.generateMethodId(methodName, className);
     }
 
     /**
-     * 生成註解 ID
+     * 生成註解 ID (使用統一生成器)
      */
     protected String generateAnnotationId(String annotationName, String targetType) {
-        return String.format("annotation_%s_%s", targetType, annotationName);
+        return neo4jIdGenerator.generateAnnotationId(annotationName, targetType);
     }
 
     /**
@@ -113,9 +117,24 @@ public abstract class BaseAstGraphHandler implements IAstGraphHandler {
     protected Neo4jClassNode createClassEntityFromSequenceData(JsonNode sequenceData, String className,
             String sourceFile, String packageName) {
         Neo4jClassNode classNode = new Neo4jClassNode();
-        classNode.setId(generateClassId(className, packageName));
-        classNode.setName(className);
-        classNode.setPackageName(packageName);
+
+        // 檢查 className 是否已經是完整的 FQN
+        String classFqn;
+        String actualPackageName;
+
+        if (className.contains(".")) {
+            // className 已經是完整的 FQN
+            classFqn = className;
+            actualPackageName = extractPackageNameFromFqn(className);
+        } else {
+            // className 只是簡單類名，需要與 packageName 組合
+            classFqn = packageName.isEmpty() ? className : packageName + "." + className;
+            actualPackageName = packageName;
+        }
+
+        classNode.setId(generateClassId(classFqn));
+        classNode.setName(className); // 保持原始 className，用於關係匹配
+        classNode.setPackageName(actualPackageName);
         classNode.setSourceFile(sourceFile);
         classNode.setLineNumber(1);
         classNode.setColumnNumber(1);
@@ -129,14 +148,77 @@ public abstract class BaseAstGraphHandler implements IAstGraphHandler {
     protected Neo4jInterfaceNode createInterfaceEntityFromSequenceData(JsonNode sequenceData, String interfaceName,
             String sourceFile, String packageName) {
         Neo4jInterfaceNode interfaceNode = new Neo4jInterfaceNode();
-        interfaceNode.setId(generateInterfaceId(interfaceName, packageName));
-        interfaceNode.setName(interfaceName);
-        interfaceNode.setPackageName(packageName);
+
+        // 檢查 interfaceName 是否已經是完整的 FQN
+        String interfaceFqn;
+        String actualPackageName;
+
+        if (interfaceName.contains(".")) {
+            // interfaceName 已經是完整的 FQN
+            interfaceFqn = interfaceName;
+            actualPackageName = extractPackageNameFromFqn(interfaceName);
+        } else {
+            // interfaceName 只是簡單介面名，需要與 packageName 組合
+            interfaceFqn = packageName.isEmpty() ? interfaceName : packageName + "." + interfaceName;
+            actualPackageName = packageName;
+        }
+
+        interfaceNode.setId(generateInterfaceId(interfaceFqn));
+        interfaceNode.setName(interfaceName); // 保持原始 interfaceName，用於關係匹配
+        interfaceNode.setPackageName(actualPackageName);
         interfaceNode.setSourceFile(sourceFile);
         interfaceNode.setLineNumber(1);
         interfaceNode.setColumnNumber(1);
 
         return interfaceNode;
+    }
+
+    /**
+     * 從完整限定名中提取包名
+     */
+    private String extractPackageNameFromFqn(String fqn) {
+        if (fqn == null || fqn.isEmpty()) {
+            return "";
+        }
+
+        // 先去除泛型參數 <...>
+        String withoutGenerics = fqn;
+        int genericStart = fqn.indexOf('<');
+        if (genericStart != -1) {
+            withoutGenerics = fqn.substring(0, genericStart);
+        }
+
+        // 提取包名（去除最後的類名部分）
+        int lastDotIndex = withoutGenerics.lastIndexOf('.');
+        if (lastDotIndex >= 0) {
+            return withoutGenerics.substring(0, lastDotIndex);
+        }
+
+        return "";
+    }
+
+    /**
+     * 從完整限定名中提取簡單類名
+     */
+    private String extractSimpleClassName(String fqn) {
+        if (fqn == null || fqn.isEmpty()) {
+            return "Unknown";
+        }
+
+        // 先去除泛型參數 <...>
+        String withoutGenerics = fqn;
+        int genericStart = fqn.indexOf('<');
+        if (genericStart != -1) {
+            withoutGenerics = fqn.substring(0, genericStart);
+        }
+
+        // 提取最後一部分作為簡單類名
+        int lastDotIndex = withoutGenerics.lastIndexOf('.');
+        if (lastDotIndex >= 0) {
+            return withoutGenerics.substring(lastDotIndex + 1);
+        }
+
+        return withoutGenerics;
     }
 
     /**

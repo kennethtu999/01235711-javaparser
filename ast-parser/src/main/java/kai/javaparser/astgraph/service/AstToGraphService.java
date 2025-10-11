@@ -24,6 +24,7 @@ import kai.javaparser.ast.repository.AstNodeRepositoryService;
 import kai.javaparser.astgraph.service.handler.ClassAstGraphHandler;
 import kai.javaparser.astgraph.service.handler.InterfaceAstGraphHandler;
 import kai.javaparser.astgraph.util.AstToGraphUtil;
+import kai.javaparser.astgraph.util.Neo4jIdGenerator;
 import kai.javaparser.repository.FileSystemAstRepository;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,6 +54,9 @@ public class AstToGraphService {
 
     @Autowired
     private AstToGraphUtil astToGraphUtil;
+
+    @Autowired
+    private Neo4jIdGenerator neo4jIdGenerator;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -180,6 +184,10 @@ public class AstToGraphService {
                 Map<String, List<String>> allInterfaceAnnotationRelations = new HashMap<>();
                 Map<String, List<String>> allMethodAnnotationRelations = new HashMap<>();
 
+                // 【新增：收集繼承與實現關係】
+                Map<String, String> allExtendsRelations = new HashMap<>(); // subClassId -> superClassId
+                Map<String, List<String>> allImplementsRelations = new HashMap<>(); // classId -> List<interfaceId>
+
                 // 遍歷所有 JSON 文件
                 try (Stream<Path> paths = Files.walk(astPath)) {
                     List<Path> jsonFiles = paths
@@ -238,6 +246,9 @@ public class AstToGraphService {
                             allClassAnnotationRelations.putAll(classAnnotationRelations);
                             allInterfaceAnnotationRelations.putAll(interfaceAnnotationRelations);
                             allMethodAnnotationRelations.putAll(methodAnnotationRelations);
+
+                            // 【新增：提取繼承與實現關係】
+                            extractClassInheritanceRelations(rootNode, allExtendsRelations, allImplementsRelations);
 
                             successFiles++;
                             log.debug("成功處理文件: {}", jsonFile.getFileName());
@@ -299,10 +310,25 @@ public class AstToGraphService {
                     log.info("批量建立 {} 個方法與註解的關係", methodAnnotationRelationsCreated);
                 }
 
+                // 【新增：建立 EXTENDS 關係】
+                int extendsRelationsCreated = 0;
+                if (!allExtendsRelations.isEmpty()) {
+                    extendsRelationsCreated = astNodeRepositoryService.bulkCreateExtendsRelations(allExtendsRelations);
+                    log.info("批量建立 {} 個 EXTENDS 關係", extendsRelationsCreated);
+                }
+
+                // 【新增：建立 IMPLEMENTS 關係】
+                int implementsRelationsCreated = 0;
+                if (!allImplementsRelations.isEmpty()) {
+                    implementsRelationsCreated = astNodeRepositoryService
+                            .bulkCreateImplementsRelations(allImplementsRelations);
+                    log.info("批量建立 {} 個 IMPLEMENTS 關係", implementsRelationsCreated);
+                }
+
                 totalNodes = result.classesInserted + result.methodsInserted + interfacesInserted + annotationsInserted;
                 totalRelationships = result.classMethodRelationsCreated + result.methodCallRelationsCreated +
                         classAnnotationRelationsCreated + interfaceAnnotationRelationsCreated
-                        + methodAnnotationRelationsCreated;
+                        + methodAnnotationRelationsCreated + extendsRelationsCreated + implementsRelationsCreated;
 
                 statistics.put("success", true);
                 statistics.put("message", "批量轉換完成");
@@ -672,6 +698,48 @@ public class AstToGraphService {
         }
 
         return relations;
+    }
+
+    /**
+     * 提取繼承和實現關係
+     * 
+     * @param rootNode            JSON 根節點
+     * @param extendsRelations    繼承關係映射 (subClassId -> superClassId)
+     * @param implementsRelations 實現關係映射 (classId -> List<interfaceId>)
+     */
+    private void extractClassInheritanceRelations(JsonNode rootNode, Map<String, String> extendsRelations,
+            Map<String, List<String>> implementsRelations) {
+        JsonNode sequenceData = rootNode.path("sequenceDiagramData");
+        if (sequenceData.isObject()) {
+            String classFqn = sequenceData.path("classFqn").asText();
+
+            if (!classFqn.isEmpty()) {
+                String currentClassId = neo4jIdGenerator.generateClassId(classFqn);
+
+                // 提取 extends 關係
+                String extendsFqn = sequenceData.path("extendsClassFqn").asText();
+                if (!extendsFqn.isEmpty()) {
+                    String superClassId = neo4jIdGenerator.generateClassId(extendsFqn);
+                    extendsRelations.put(currentClassId, superClassId);
+                }
+
+                // 提取 implements 關係
+                JsonNode implementsFqns = sequenceData.path("implementsInterfaceFqns");
+                if (implementsFqns.isArray()) {
+                    List<String> interfaceIds = new ArrayList<>();
+                    for (JsonNode interfaceFqnNode : implementsFqns) {
+                        String interfaceFqn = interfaceFqnNode.asText();
+                        if (!interfaceFqn.isEmpty()) {
+                            String interfaceId = neo4jIdGenerator.generateInterfaceId(interfaceFqn);
+                            interfaceIds.add(interfaceId);
+                        }
+                    }
+                    if (!interfaceIds.isEmpty()) {
+                        implementsRelations.put(currentClassId, interfaceIds);
+                    }
+                }
+            }
+        }
     }
 
     // ==================== 輔助方法 ====================
